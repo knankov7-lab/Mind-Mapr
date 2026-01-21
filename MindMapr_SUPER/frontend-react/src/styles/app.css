@@ -1,0 +1,190 @@
+:root{
+  --bg0:#0b1020;
+  --bg1:#101a33;
+  --card:#121a2e;
+  --muted:#a8b3cf;
+  --text:#e9eeff;
+  --accent:#7c5cff;
+  --accent2:#26d1a7;
+  --warn:#ffdd57;
+  --shadow: 0 18px 55px rgba(0,0,0,.35);
+  --radius:16px;
+}
+
+*{ box-sizing:border-box; }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--text);
+  background: radial-gradient(1200px 700px at 10% 0%, #25306a 0%, rgba(37,48,106,0) 55%),
+              radial-gradient(900px 600px at 100% 10%, #1f7a64 0%, rgba(31,122,100,0) 60%),
+              linear-gradient(120deg, var(--bg0), var(--bg1));
+  height:100vh;
+  overflow:hidden;
+}
+
+a{ color:inherit; }
+kbd{
+  background: rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  padding:2px 6px;
+  border-radius:8px;
+  font-size:12px;
+  color:var(--text);
+}
+.header{
+  position:fixed;
+  top:0; left:0; right:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 18px;
+  background: rgba(10,14,30,.45);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(10px);
+  z-index:10;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:800;
+  letter-spacing:.2px;
+}
+.badge{
+  font-size:12px;
+  padding:4px 10px;
+  border-radius:999px;
+  background: rgba(124,92,255,.18);
+  border:1px solid rgba(124,92,255,.35);
+  color: #d9d2ff;
+}
+.main{
+  position:absolute;
+  top:62px; bottom:0; left:0; right:0;
+  display:grid;
+  grid-template-columns: 360px 1fr;
+  gap:14px;
+  padding:14px;
+}
+.panel{
+  background: rgba(18,26,46,.62);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  min-width:320px;
+}
+.panel .section{
+  padding:14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.panel h3{
+  margin:0 0 8px 0;
+  font-size:14px;
+  color:#dfe6ff;
+  font-weight:800;
+}
+.row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.col{ display:flex; flex-direction:column; gap:10px; }
+.input, .btn, .select{
+  width:100%;
+  border-radius: 12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color:var(--text);
+  padding:10px 12px;
+  outline:none;
+}
+.input::placeholder{ color: rgba(233,238,255,.55); }
+.btn{
+  cursor:pointer;
+  font-weight:800;
+  letter-spacing:.2px;
+  transition: transform .08s ease, filter .12s ease, background .12s ease;
+}
+.btn:hover{ filter:brightness(1.06); }
+.btn:active{ transform: translateY(1px); }
+.btn.primary{
+  background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(38,209,167,.85));
+  border:1px solid rgba(255,255,255,.10);
+}
+.btn.ghost{
+  background: rgba(255,255,255,.07);
+}
+.btn.warn{
+  background: rgba(255,221,87,.14);
+  border:1px solid rgba(255,221,87,.28);
+}
+.small{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.4;
+}
+.pill{
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  padding:6px 10px;
+  border-radius:999px;
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  color: var(--muted);
+  font-size:12px;
+}
+.dot{
+  width:8px; height:8px; border-radius:99px;
+  background: rgba(255,255,255,.25);
+}
+.dot.ok{ background: rgba(38,209,167,.9); }
+.dot.bad{ background: rgba(255,110,110,.9); }
+.canvasWrap{
+  background: rgba(12,16,32,.45);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  position:relative;
+}
+.help{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.footerNote{
+  padding:12px 14px;
+  color: rgba(233,238,255,.65);
+  font-size:12px;
+}
+.toast{
+  position:absolute;
+  right:14px;
+  bottom:14px;
+  background: rgba(18,26,46,.85);
+  border:1px solid rgba(255,255,255,.10);
+  padding:10px 12px;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  max-width: 420px;
+  font-size: 12px;
+  color: rgba(233,238,255,.86);
+}
+.react-flow__controls{
+  box-shadow: none !important;
+  background: rgba(18,26,46,.75) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  border-radius: 14px !important;
+  overflow:hidden;
+}
+.react-flow__minimap{
+  background: rgba(18,26,46,.75) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  border-radius: 14px !important;
+  overflow:hidden;
+}
