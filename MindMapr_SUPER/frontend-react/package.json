@@ -7,11 +7,13 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "reactflow": "^11.11.4"
+    "reactflow": "^11.11.4",
+    "axios": "^1.6.2"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "build": "react-scripts build",
+    "lint": "eslint src"
   },
   "browserslist": {
     "production": [
@@ -25,7 +27,5 @@
       "last 1 safari version"
     ]
   },
-  "devDependencies": {
-    "eslint-plugin-react-hooks": "^7.0.1"
-  }
+  "devDependencies": {}
 }

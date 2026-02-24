@@ -8,9 +8,11 @@ import ReactFlow, {
   applyNodeChanges
 } from "reactflow";
 import { nanoid } from "nanoid";
+import { useAuth } from "./AuthContext";
+import { mapsAPI, aiAPI } from "./api";
+import AdminPanel from './AdminPanel';
 
-const API = "http://localhost:3000";
-const WS = "ws://localhost:3002";
+const WS = "ws://localhost:3000/ws";
 
 function getRoomFromUrl() {
   const u = new URL(window.location.href);
@@ -24,12 +26,16 @@ function setRoomInUrl(room) {
 }
 
 export default function App() {
+  const { user, isAuthenticated, isAdmin, login, register, logout } = useAuth();
   const [room, setRoom] = useState(getRoomFromUrl());
   const [name, setName] = useState(() => localStorage.getItem("mm_name") || "guest");
   const [status, setStatus] = useState("offline"); // online/offline
   const [lastSync, setLastSync] = useState(null);
   const [toast, setToast] = useState("");
+  const [showAdmin, setShowAdmin] = useState(false);
   const [aiResult, setAiResult] = useState(null);
+  const [authForm, setAuthForm] = useState({ email: "", password: "", username: "" });
+  const [authError, setAuthError] = useState("");
 
   const [nodes, setNodes] = useState(() => ([
     { id: "root", position: { x: 0, y: 0 }, data: { label: "Главна тема" }, type: "default" }
@@ -81,7 +87,6 @@ export default function App() {
     return () => {
       try { ws.close(); } catch {}
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room]);
 
   const broadcastState = useCallback((nextNodes, nextEdges) => {
@@ -174,37 +179,68 @@ export default function App() {
   }, [nodes, edges, scheduleBroadcast]);
 
   const saveSnapshot = useCallback(async () => {
-    const res = await fetch(`${API}/api/maps/save`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ room, nodes, edges })
-    });
-    if (res.ok) showToast("Запазено локално (в сървъра).");
-    else showToast("Грешка при запис.");
-  }, [room, nodes, edges, showToast]);
+    if (!isAuthenticated) {
+      showToast("Трябва да сте влезли в системата, за да запазите.");
+      return;
+    }
+    try {
+      await mapsAPI.save(room, nodes, edges);
+      showToast("Запазено в базата данни.");
+    } catch (error) {
+      showToast("Грешка при запис: " + (error.response?.data?.error || error.message));
+    }
+  }, [room, nodes, edges, showToast, isAuthenticated, mapsAPI]);
 
   const loadSnapshot = useCallback(async () => {
-    const res = await fetch(`${API}/api/maps/load?room=${encodeURIComponent(room)}`);
-    if (!res.ok) return showToast("Няма запазена карта за тази стая.");
-    const data = await res.json();
-    if (!data?.nodes) return showToast("Невалиден запис.");
-    setNodes(data.nodes);
-    setEdges(data.edges || []);
-    scheduleBroadcast(data.nodes, data.edges || []);
-    showToast("Заредено.");
+    try {
+      const res = await mapsAPI.load(room);
+      const data = res.data;
+      if (!data?.nodes) return showToast("Невалиден запис.");
+      setNodes(data.nodes);
+      setEdges(data.edges || []);
+      scheduleBroadcast(data.nodes, data.edges || []);
+      showToast("Заредено.");
+    } catch (_err) {
+      showToast("Няма запазена карта за тази стая.");
+    }
   }, [room, scheduleBroadcast, showToast]);
+
+  const onAuthFieldChange = useCallback((key, value) => {
+    setAuthForm((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleLogin = useCallback(async () => {
+    setAuthError("");
+    const result = await login(authForm.email, authForm.password);
+    if (!result.success) {
+      setAuthError(result.error || "Login failed");
+      return;
+    }
+    showToast("Успешен вход.");
+    setAuthForm((prev) => ({ ...prev, password: "" }));
+  }, [authForm.email, authForm.password, login, showToast]);
+
+  const handleRegister = useCallback(async () => {
+    setAuthError("");
+    const result = await register(authForm.email, authForm.password, authForm.username);
+    if (!result.success) {
+      setAuthError(result.error || "Registration failed");
+      return;
+    }
+    showToast("Регистрацията е успешна.");
+    setAuthForm((prev) => ({ ...prev, password: "" }));
+  }, [authForm.email, authForm.password, authForm.username, register, showToast]);
 
   const runAI = useCallback(async () => {
     setAiResult(null);
-    const res = await fetch(`${API}/api/ai/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ room, nodes, edges })
-    });
-    const data = await res.json();
-    setAiResult(data);
-    showToast("AI анализ готов.");
-  }, [room, nodes, edges, showToast]);
+    try {
+      const res = await aiAPI.analyze(nodes, edges);
+      setAiResult(res.data);
+      showToast("AI анализ готов.");
+    } catch (error) {
+      showToast("Грешка при AI анализ: " + (error.response?.data?.error || error.message));
+    }
+  }, [nodes, edges, showToast, aiAPI]);
 
   const shareLink = useMemo(() => {
     const u = new URL(window.location.href);
@@ -241,6 +277,9 @@ export default function App() {
           <span className="pill" title="Последна синхронизация">
             ⏱ {lastSync || "—"}
           </span>
+          {isAdmin ? (
+            <button className="btn ghost" onClick={() => setShowAdmin(true)}>⚙️ Admin</button>
+          ) : null}
         </div>
       </div>
 
@@ -271,6 +310,45 @@ export default function App() {
           </div>
 
           <div className="section">
+            <h3>Профил</h3>
+            {isAuthenticated ? (
+              <div className="col">
+                <div className="small">
+                  Влезнал(а) като <b>{user?.email}</b> ({user?.role})
+                </div>
+                <button className="btn ghost" onClick={logout}>Изход</button>
+              </div>
+            ) : (
+              <div className="col">
+                <input
+                  className="input"
+                  value={authForm.email}
+                  onChange={(e) => onAuthFieldChange("email", e.target.value)}
+                  placeholder="email"
+                />
+                <input
+                  className="input"
+                  type="password"
+                  value={authForm.password}
+                  onChange={(e) => onAuthFieldChange("password", e.target.value)}
+                  placeholder="password"
+                />
+                <input
+                  className="input"
+                  value={authForm.username}
+                  onChange={(e) => onAuthFieldChange("username", e.target.value)}
+                  placeholder="username (за регистрация)"
+                />
+                <div className="row">
+                  <button className="btn primary" onClick={handleLogin}>Вход</button>
+                  <button className="btn ghost" onClick={handleRegister}>Регистрация</button>
+                </div>
+                {authError ? <div className="small" style={{ color: "#ff8f8f" }}>{authError}</div> : null}
+              </div>
+            )}
+          </div>
+
+          <div className="section">
             <h3>Инструменти</h3>
             <div className="col">
               <div className="row">
@@ -296,7 +374,7 @@ export default function App() {
               <button className="btn ghost" onClick={saveSnapshot}>💾 Запази</button>
               <button className="btn ghost" onClick={loadSnapshot}>📂 Зареди</button>
             </div>
-            <div className="small">Записът е в паметта на сървъра (демо). За диплома може да се замени с база данни.</div>
+            <div className="small">Записът е в базата данни. Изисква се вход в системата.</div>
           </div>
 
           <div className="section">
@@ -350,6 +428,7 @@ export default function App() {
           {toast ? <div className="toast">{toast}</div> : null}
         </div>
       </div>
+      {showAdmin ? <AdminPanel onClose={() => setShowAdmin(false)} /> : null}
     </>
   );
 }
