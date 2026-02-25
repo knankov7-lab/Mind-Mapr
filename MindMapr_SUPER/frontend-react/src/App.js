@@ -34,6 +34,8 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
   const [aiResult, setAiResult] = useState(null);
+    const [aiTopic, setAiTopic] = useState("");
+    const [aiLoading, setAiLoading] = useState(false);
   const [authForm, setAuthForm] = useState({ email: "", password: "", username: "" });
   const [authError, setAuthError] = useState("");
 
@@ -242,6 +244,24 @@ export default function App() {
     }
   }, [nodes, edges, showToast, aiAPI]);
 
+  const generateMindMap = useCallback(async () => {
+    if (!aiTopic.trim()) {
+      showToast("Въведи тема за генериране.");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const res = await aiAPI.generateMap(aiTopic);
+      setNodes(res.data.nodes);
+      setEdges(res.data.edges);
+      showToast("Генерирана мисловна карта по тема: " + aiTopic);
+    } catch (error) {
+      showToast("Грешка при AI генериране: " + (error.response?.data?.error || error.message));
+    } finally {
+      setAiLoading(false);
+    }
+  }, [aiTopic, aiAPI, showToast]);
+
   const shareLink = useMemo(() => {
     const u = new URL(window.location.href);
     u.searchParams.set("room", room);
@@ -379,8 +399,22 @@ export default function App() {
 
           <div className="section">
             <h3>AI асистент</h3>
-            <div className="row">
-              <button className="btn primary" onClick={runAI}>🤖 Анализирай карта</button>
+            <div className="col" style={{gap:10}}>
+              <div className="row">
+                <input
+                  className="input"
+                  value={aiTopic}
+                  onChange={e => setAiTopic(e.target.value)}
+                  placeholder="Въведи тема (например: Екология)"
+                  disabled={aiLoading}
+                />
+                <button className="btn primary" onClick={generateMindMap} disabled={aiLoading}>
+                  {aiLoading ? "Генерира..." : "🧠 Генерирай карта"}
+                </button>
+              </div>
+              <div className="row">
+                <button className="btn ghost" onClick={runAI}>🤖 Анализирай текущата карта</button>
+              </div>
             </div>
             {aiResult ? (
               <div style={{marginTop:10}}>

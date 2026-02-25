@@ -27,6 +27,7 @@ export const mapsAPI = {
 
 export const aiAPI = {
   analyze: (nodes, edges) => api.post('/ai/analyze', { nodes, edges }),
+  generateMap: (topic) => api.post('/ai/generate-map', { topic }),
 };
 
 export const adminAPI = {

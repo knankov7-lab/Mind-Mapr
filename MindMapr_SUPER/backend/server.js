@@ -103,6 +103,48 @@ app.post("/api/ai/analyze", guestLimiter, (req, res) => {
 });
 
 const adminRouter = require('./admin');
+const ai = require('./ai');
+// Generate mind map from topic
+app.post('/api/ai/generate-map', async (req, res) => {
+  try {
+    const topic = req.body.topic || '';
+    if (!topic.trim()) return res.status(400).json({ error: 'Topic required' });
+    const result = await ai.generateMindMap(topic);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+// AI endpoints
+app.post('/api/ai/suggest-nodes', async (req, res) => {
+  try {
+    const nodes = req.body.nodes || [];
+    const suggestions = await ai.suggestNewNodes(nodes);
+    res.json({ suggestions });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/ai/propose-links', async (req, res) => {
+  try {
+    const nodes = req.body.nodes || [];
+    const links = ai.proposeLinks(nodes);
+    res.json({ links });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/ai/analyze-activity', async (req, res) => {
+  try {
+    const log = req.body.activityLog || [];
+    const suggestions = ai.analyzeActivity(log);
+    res.json({ suggestions });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 
 const server = http.createServer(app);
