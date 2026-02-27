@@ -1,6 +1,17 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const { insertUser, getUserByEmail, getUserById } = require("./db");
+const {
+  insertUser,
+  getUserByEmail,
+  getUserById,
+  updateUserProfile,
+  updateUserPasswordHash,
+  insertPasswordReset,
+  getPasswordResetByHash,
+  markPasswordResetUsed,
+  insertLog,
+} = require("./db");
 
 const JWT_SECRET = process.env.JWT_SECRET || "mindmapr-dev-secret";
 
@@ -106,6 +117,106 @@ async function login(req, res) {
   }
 }
 
+async function updateProfile(req, res) {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Authentication required" });
+
+  const { username } = req.body || {};
+  try {
+    await updateUserProfile(userId, { username });
+    const fresh = await getUserById(userId);
+    await insertLog(userId, "profile_update", { username: fresh?.username ?? null }, req.ip);
+    return res.json({ ok: true, user: toSafeUser(fresh) });
+  } catch (_err) {
+    return res.status(500).json({ error: "Profile update failed" });
+  }
+}
+
+async function changePassword(req, res) {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Authentication required" });
+
+  const { oldPassword, newPassword } = req.body || {};
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ error: "oldPassword and newPassword required" });
+  }
+  if (String(newPassword).length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
+
+  try {
+    const user = await getUserById(userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const ok = await verifyPassword(String(oldPassword), user.password_hash);
+    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+
+    const nextHash = await hashPassword(String(newPassword));
+    await updateUserPasswordHash(userId, nextHash);
+    await insertLog(userId, "password_change", {}, req.ip);
+    return res.json({ ok: true });
+  } catch (_err) {
+    return res.status(500).json({ error: "Password change failed" });
+  }
+}
+
+function sha256Hex(text) {
+  return crypto.createHash("sha256").update(String(text)).digest("hex");
+}
+
+async function requestPasswordReset(req, res) {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: "Email required" });
+
+  try {
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await getUserByEmail(normalizedEmail);
+    // Always return ok to avoid user enumeration
+    if (!user) return res.json({ ok: true });
+
+    const token = crypto.randomBytes(24).toString("hex");
+    const tokenHash = sha256Hex(token);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 min
+
+    await insertPasswordReset(user.id, tokenHash, expiresAt);
+    await insertLog(user.id, "password_reset_requested", { email: normalizedEmail }, req.ip);
+
+    // Dev-mode: return token in response. In production you'd email this.
+    return res.json({ ok: true, token, expiresAt });
+  } catch (_err) {
+    return res.status(500).json({ error: "Reset request failed" });
+  }
+}
+
+async function resetPassword(req, res) {
+  const { token, newPassword } = req.body || {};
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: "token and newPassword required" });
+  }
+  if (String(newPassword).length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
+
+  try {
+    const tokenHash = sha256Hex(token);
+    const pr = await getPasswordResetByHash(tokenHash);
+    if (!pr) return res.status(400).json({ error: "Invalid or expired token" });
+    if (pr.used_at) return res.status(400).json({ error: "Token already used" });
+    const exp = new Date(pr.expires_at).getTime();
+    if (!Number.isFinite(exp) || Date.now() > exp) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    const nextHash = await hashPassword(String(newPassword));
+    await updateUserPasswordHash(pr.user_id, nextHash);
+    await markPasswordResetUsed(pr.id);
+    await insertLog(pr.user_id, "password_reset_completed", {}, req.ip);
+    return res.json({ ok: true });
+  } catch (_err) {
+    return res.status(500).json({ error: "Reset failed" });
+  }
+}
+
 module.exports = {
   authMiddleware,
   requireAuth,
@@ -113,4 +224,9 @@ module.exports = {
   register,
   login,
   hashPassword,
+  verifyToken,
+  updateProfile,
+  changePassword,
+  requestPasswordReset,
+  resetPassword,
 };

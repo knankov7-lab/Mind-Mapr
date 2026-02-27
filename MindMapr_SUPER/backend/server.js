@@ -1,13 +1,58 @@
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
+const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
-const { authMiddleware, requireAuth, requireAdmin, register, login, hashPassword } = require("./auth");
+const {
+  authMiddleware,
+  requireAuth,
+  requireAdmin,
+  register,
+  login,
+  hashPassword,
+  updateProfile,
+  changePassword,
+  requestPasswordReset,
+  resetPassword,
+  verifyToken,
+} = require("./auth");
+const { seedAiExamplesIfEmpty } = require("./ai_seed");
 const {
   initDatabase,
   insertRoom,
   insertSave,
   getLatestSave,
+  listSaves,
+  listSavesByUser,
+  getSaveById,
+  deleteSaveById,
+  listPublicRooms,
+
+  getRoomById,
+  updateRoomMeta,
+  updateRoomTeam,
+  listSavesForRoom,
+  getSaveContentById,
+
+  // Teams
+  insertTeam,
+  getTeamById,
+  listTeamsForUser,
+  addTeamMember,
+  setTeamMemberRole,
+  removeTeamMember,
+  getTeamMember,
+  listTeamMembers,
+
+  // Comments
+  insertComment,
+  listCommentsForRoom,
+  getCommentById,
+  deleteCommentById,
+
+  // Logs
+  insertLog,
+
   getUserByEmail,
   insertUser,
   listUsers,
@@ -26,11 +71,210 @@ app.use(express.json({ limit: "2mb" }));
 
 app.use(authMiddleware);
 
+async function logAction(req, action, details) {
+  try {
+    await insertLog(req.user?.id ?? null, action, details ?? null, req.ip);
+  } catch {
+    // ignore logging failures
+  }
+}
+
+function isAdminUser(req) {
+  return String(req.user?.role || "").toLowerCase() === "admin";
+}
+
+async function canAccessRoom(req, roomId, { allowPublicRead = false } = {}) {
+  const rm = await getRoomById(roomId);
+  if (!rm) return { ok: false, status: 404, error: "room not found", room: null };
+
+  const isPublic = Number(rm.public || 0) === 1;
+  const admin = !!req.user && isAdminUser(req);
+  const owner = !!req.user && Number(rm.created_by) === Number(req.user.id);
+
+  if (allowPublicRead && isPublic) return { ok: true, room: rm, role: "public" };
+  if (!req.user) return { ok: false, status: 401, error: "Authentication required", room: rm };
+  if (admin || owner) return { ok: true, room: rm, role: admin ? "admin" : "owner" };
+
+  const teamId = rm.team_id;
+  if (teamId != null) {
+    const member = await getTeamMember(Number(teamId), Number(req.user.id));
+    if (member) return { ok: true, room: rm, role: member.role_in_team };
+  }
+
+  return { ok: false, status: 403, error: "forbidden", room: rm };
+}
+
+async function accessForRoomAndUser(roomId, user, { allowPublicRead = false } = {}) {
+  const rm = await getRoomById(roomId);
+  if (!rm) return { ok: true, room: null, role: user ? 'user' : 'guest', canWrite: true, canRead: true };
+
+  const isPublic = Number(rm.public || 0) === 1;
+  const isAdmin = !!user && String(user.role || '').toLowerCase() === 'admin';
+  const isOwner = !!user && Number(rm.created_by) === Number(user.id);
+  if (allowPublicRead && isPublic && !user) {
+    return { ok: true, room: rm, role: 'public', canWrite: false, canRead: true };
+  }
+  if (!user) {
+    return { ok: false, status: 401, error: 'Authentication required', room: rm };
+  }
+  if (isAdmin) return { ok: true, room: rm, role: 'admin', canWrite: true, canRead: true };
+  if (isOwner) return { ok: true, room: rm, role: 'owner', canWrite: true, canRead: true };
+
+  const teamId = rm.team_id;
+  if (teamId != null) {
+    const member = await getTeamMember(Number(teamId), Number(user.id));
+    if (!member) return { ok: false, status: 403, error: 'forbidden', room: rm };
+    const role = String(member.role_in_team || 'viewer');
+    const canWrite = role === 'owner' || role === 'editor';
+    return { ok: true, room: rm, role, canWrite, canRead: true };
+  }
+
+  return { ok: false, status: 403, error: 'forbidden', room: rm };
+}
+
+// Списък с всички карти (saves)
+app.get("/api/maps/list", requireAuth, async (req, res) => {
+  try {
+    const saves = await listSavesByUser(req.user.id);
+    res.json({ saves });
+  } catch (err) {
+    res.status(500).json({ error: "List failed" });
+  }
+});
+
+// Изтриване на карта (save) по id
+app.delete("/api/maps/:id", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    return res.status(400).json({ error: "Invalid id" });
+  }
+
+  try {
+    const save = await getSaveById(id);
+    if (!save) return res.status(404).json({ error: "not found" });
+
+    const isAdmin = String(req.user?.role || "").toLowerCase() === "admin";
+    const isOwner = Number(save.saved_by) === Number(req.user?.id);
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+
+    const result = await deleteSaveById(id);
+    return res.json({ ok: true, deleted: result.changes || 0 });
+  } catch (_err) {
+    return res.status(500).json({ error: "Delete failed" });
+  }
+});
+
 const guestLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: { error: "Too many requests from this IP, please try again later." },
   skip: (req) => !!req.user,
+});
+
+// Публични (одобрени) карти/стаи - достъпни без вход
+app.get("/api/maps/public", guestLimiter, async (req, res) => {
+  try {
+    const limit = req.query.limit;
+    const rooms = await listPublicRooms(limit);
+    res.json({ rooms });
+  } catch (_err) {
+    res.status(500).json({ error: "Public list failed" });
+  }
+});
+
+// История на записите (версии) за стая
+app.get("/api/maps/history", requireAuth, async (req, res) => {
+  const room = (req.query.room || "").toString().trim();
+  if (!room) return res.status(400).json({ error: "room required" });
+
+  try {
+    const access = await canAccessRoom(req, room, { allowPublicRead: false });
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+
+    const limit = req.query.limit;
+    const saves = await listSavesForRoom(room, limit);
+    res.json({ room, saves });
+  } catch (_err) {
+    res.status(500).json({ error: "History failed" });
+  }
+});
+
+// Зареждане на конкретна версия (save) по id
+app.get("/api/maps/load-save", requireAuth, async (req, res) => {
+  const id = Number(req.query.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: "id required" });
+
+  try {
+    const save = await getSaveContentById(id);
+    if (!save) return res.status(404).json({ error: "not found" });
+
+    const access = await canAccessRoom(req, save.room_id, { allowPublicRead: false });
+    const isSaver = Number(save.saved_by) === Number(req.user.id);
+    if (!access.ok && !isSaver) return res.status(access.status).json({ error: access.error });
+
+    res.json({
+      id: save.id,
+      room: save.room_id,
+      created_at: save.created_at,
+      nodes: JSON.parse(save.nodes),
+      edges: JSON.parse(save.edges),
+    });
+  } catch (_err) {
+    res.status(500).json({ error: "Load save failed" });
+  }
+});
+
+// Room metadata (name/description/tags)
+app.get("/api/rooms/meta", guestLimiter, async (req, res) => {
+  const room = (req.query.room || "").toString().trim();
+  if (!room) return res.status(400).json({ error: "room required" });
+
+  try {
+    const access = await canAccessRoom(req, room, { allowPublicRead: true });
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+    const rm = access.room;
+
+    res.json({
+      room_id: rm.room_id,
+      name: rm.name,
+      description: rm.description,
+      tags: rm.tags,
+      public: rm.public,
+      team_id: rm.team_id,
+      created_by: rm.created_by,
+      created_at: rm.created_at,
+    });
+  } catch (_err) {
+    res.status(500).json({ error: "Meta load failed" });
+  }
+});
+
+app.put("/api/rooms/meta", requireAuth, async (req, res) => {
+  const { room, name, description, tags } = req.body || {};
+  const roomId = (room || "").toString().trim();
+  if (!roomId) return res.status(400).json({ error: "room required" });
+
+  try {
+    const access = await canAccessRoom(req, roomId, { allowPublicRead: false });
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+
+    const isAdmin = isAdminUser(req);
+    const isOwner = Number(access.room.created_by) === Number(req.user.id);
+    const isEditor = String(access.role) === 'editor' || String(access.role) === 'owner';
+    if (!isAdmin && !isOwner && !isEditor) return res.status(403).json({ error: "forbidden" });
+
+    const nextName = typeof name === "string" ? name.trim().slice(0, 80) : null;
+    const nextDesc = typeof description === "string" ? description.trim().slice(0, 500) : null;
+    const nextTags = typeof tags === "string" ? tags.trim().slice(0, 500) : null;
+
+    await updateRoomMeta(roomId, nextName, nextDesc, nextTags);
+    await logAction(req, 'room_meta_update', { room: roomId, name: nextName, tags: nextTags });
+    res.json({ ok: true });
+  } catch (_err) {
+    res.status(500).json({ error: "Meta update failed" });
+  }
 });
 
 const roomState = new Map();
@@ -44,19 +288,49 @@ app.get("/api/health", (req, res) => {
 
 app.post("/api/auth/register", register);
 app.post("/api/auth/login", login);
+app.put("/api/auth/profile", requireAuth, updateProfile);
+app.post("/api/auth/change-password", requireAuth, changePassword);
+app.post("/api/auth/request-reset", guestLimiter, requestPasswordReset);
+app.post("/api/auth/reset-password", guestLimiter, resetPassword);
 
 app.post("/api/maps/save", requireAuth, async (req, res) => {
-  const { room, nodes, edges } = req.body || {};
+  const { room, nodes, edges, teamId } = req.body || {};
   if (!room) return res.status(400).json({ error: "room required" });
 
   try {
-    await insertRoom(String(room), null, req.user.id);
+    const roomId = String(room);
+
+    // If room exists and is team-bound, enforce membership.
+    const existingRoom = await getRoomById(roomId);
+    if (existingRoom?.team_id != null) {
+      const access = await canAccessRoom(req, roomId, { allowPublicRead: false });
+      if (!access.ok) return res.status(access.status).json({ error: access.error });
+      const canWrite = isAdminUser(req) || String(access.role) === 'owner' || String(access.role) === 'editor';
+      if (!canWrite) return res.status(403).json({ error: 'forbidden' });
+    }
+
+    await insertRoom(roomId, null, req.user.id);
+
+    // Optionally attach a team to the room on first save
+    const tid = teamId == null ? null : Number(teamId);
+    if (tid != null && Number.isFinite(tid) && tid > 0) {
+      const member = await getTeamMember(tid, req.user.id);
+      if (!member && !isAdminUser(req)) {
+        return res.status(403).json({ error: 'not a team member' });
+      }
+      const rm = await getRoomById(roomId);
+      if (rm && rm.team_id == null) {
+        await updateRoomTeam(roomId, tid);
+      }
+    }
+
     await insertSave(
-      String(room),
+      roomId,
       JSON.stringify(Array.isArray(nodes) ? nodes : []),
       JSON.stringify(Array.isArray(edges) ? edges : []),
       req.user.id
     );
+    await logAction(req, 'map_save', { room: roomId, nodes: Array.isArray(nodes) ? nodes.length : 0, edges: Array.isArray(edges) ? edges.length : 0 });
     return res.json({ ok: true });
   } catch (_err) {
     return res.status(500).json({ error: "Save failed" });
@@ -68,8 +342,13 @@ app.get("/api/maps/load", guestLimiter, async (req, res) => {
   if (!room) return res.status(400).json({ error: "room required" });
 
   try {
-    const save = await getLatestSave(String(room));
+    const roomId = String(room);
+    const access = await canAccessRoom(req, roomId, { allowPublicRead: true });
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+
+    const save = await getLatestSave(roomId);
     if (!save) return res.status(404).json({ error: "not found" });
+    await logAction(req, 'map_load', { room: roomId });
     return res.json({
       room: save.room_id,
       nodes: JSON.parse(save.nodes),
@@ -77,6 +356,171 @@ app.get("/api/maps/load", guestLimiter, async (req, res) => {
     });
   } catch (_err) {
     return res.status(500).json({ error: "Load failed" });
+  }
+});
+
+// Teams API
+app.post('/api/teams', requireAuth, async (req, res) => {
+  const { name, description } = req.body || {};
+  try {
+    const r = await insertTeam(name, req.user.id, description ?? null);
+    await addTeamMember(r.lastID, req.user.id, 'owner');
+    await logAction(req, 'team_create', { teamId: r.lastID, name: String(name || '').trim() });
+    const team = await getTeamById(r.lastID);
+    res.json({ ok: true, team });
+  } catch (e) {
+    res.status(400).json({ error: e?.message || 'Failed to create team' });
+  }
+});
+
+app.get('/api/teams', requireAuth, async (req, res) => {
+  try {
+    const teams = await listTeamsForUser(req.user.id);
+    res.json({ teams });
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to list teams' });
+  }
+});
+
+app.get('/api/teams/:id/members', requireAuth, async (req, res) => {
+  const teamId = Number(req.params.id);
+  if (!Number.isFinite(teamId) || teamId <= 0) return res.status(400).json({ error: 'invalid team id' });
+  try {
+    const member = await getTeamMember(teamId, req.user.id);
+    if (!member && !isAdminUser(req)) return res.status(403).json({ error: 'forbidden' });
+    const members = await listTeamMembers(teamId);
+    res.json({ teamId, members });
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to list members' });
+  }
+});
+
+app.post('/api/teams/:id/members', requireAuth, async (req, res) => {
+  const teamId = Number(req.params.id);
+  const { email, role } = req.body || {};
+  if (!Number.isFinite(teamId) || teamId <= 0) return res.status(400).json({ error: 'invalid team id' });
+  if (!email) return res.status(400).json({ error: 'email required' });
+
+  try {
+    const myMember = await getTeamMember(teamId, req.user.id);
+    const canManage = isAdminUser(req) || String(myMember?.role_in_team) === 'owner';
+    if (!canManage) return res.status(403).json({ error: 'forbidden' });
+
+    const u = await getUserByEmail(String(email).trim().toLowerCase());
+    if (!u) return res.status(404).json({ error: 'user not found' });
+    await addTeamMember(teamId, u.id, role || 'viewer');
+    await logAction(req, 'team_add_member', { teamId, userId: u.id, role: role || 'viewer' });
+    const members = await listTeamMembers(teamId);
+    res.json({ ok: true, members });
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to add member' });
+  }
+});
+
+app.put('/api/teams/:id/members/:userId', requireAuth, async (req, res) => {
+  const teamId = Number(req.params.id);
+  const userId = Number(req.params.userId);
+  const { role } = req.body || {};
+  if (!Number.isFinite(teamId) || teamId <= 0) return res.status(400).json({ error: 'invalid team id' });
+  if (!Number.isFinite(userId) || userId <= 0) return res.status(400).json({ error: 'invalid user id' });
+  try {
+    const myMember = await getTeamMember(teamId, req.user.id);
+    const canManage = isAdminUser(req) || String(myMember?.role_in_team) === 'owner';
+    if (!canManage) return res.status(403).json({ error: 'forbidden' });
+    await setTeamMemberRole(teamId, userId, role || 'viewer');
+    await logAction(req, 'team_set_role', { teamId, userId, role: role || 'viewer' });
+    const members = await listTeamMembers(teamId);
+    res.json({ ok: true, members });
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+app.delete('/api/teams/:id/members/:userId', requireAuth, async (req, res) => {
+  const teamId = Number(req.params.id);
+  const userId = Number(req.params.userId);
+  if (!Number.isFinite(teamId) || teamId <= 0) return res.status(400).json({ error: 'invalid team id' });
+  if (!Number.isFinite(userId) || userId <= 0) return res.status(400).json({ error: 'invalid user id' });
+  try {
+    const myMember = await getTeamMember(teamId, req.user.id);
+    const canManage = isAdminUser(req) || String(myMember?.role_in_team) === 'owner';
+    if (!canManage) return res.status(403).json({ error: 'forbidden' });
+    await removeTeamMember(teamId, userId);
+    await logAction(req, 'team_remove_member', { teamId, userId });
+    const members = await listTeamMembers(teamId);
+    res.json({ ok: true, members });
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to remove member' });
+  }
+});
+
+// Attach room to team (optional)
+app.put('/api/rooms/team', requireAuth, async (req, res) => {
+  const { room, teamId } = req.body || {};
+  const roomId = String(room || '').trim();
+  const tid = Number(teamId);
+  if (!roomId) return res.status(400).json({ error: 'room required' });
+  if (!Number.isFinite(tid) || tid <= 0) return res.status(400).json({ error: 'invalid teamId' });
+  try {
+    const access = await canAccessRoom(req, roomId, { allowPublicRead: false });
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+    const myMember = await getTeamMember(tid, req.user.id);
+    const canAttach = isAdminUser(req) || String(myMember?.role_in_team) === 'owner';
+    if (!canAttach) return res.status(403).json({ error: 'forbidden' });
+    await updateRoomTeam(roomId, tid);
+    await logAction(req, 'room_attach_team', { room: roomId, teamId: tid });
+    res.json({ ok: true });
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to attach team' });
+  }
+});
+
+// Comments API
+app.get('/api/comments', guestLimiter, async (req, res) => {
+  const room = String(req.query.room || '').trim();
+  if (!room) return res.status(400).json({ error: 'room required' });
+  try {
+    const access = await canAccessRoom(req, room, { allowPublicRead: true });
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+    const rows = await listCommentsForRoom(room, req.query.limit);
+    res.json({ room, comments: rows });
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to list comments' });
+  }
+});
+
+app.post('/api/comments', requireAuth, async (req, res) => {
+  const { room, nodeId, content } = req.body || {};
+  const roomId = String(room || '').trim();
+  if (!roomId) return res.status(400).json({ error: 'room required' });
+  try {
+    const access = await canAccessRoom(req, roomId, { allowPublicRead: false });
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+    await insertComment(roomId, req.user.id, nodeId ?? null, content);
+    await logAction(req, 'comment_create', { room: roomId, nodeId: nodeId ?? null });
+    const rows = await listCommentsForRoom(roomId, 200);
+    res.json({ ok: true, comments: rows });
+  } catch (e) {
+    res.status(400).json({ error: e?.message || 'Failed to create comment' });
+  }
+});
+
+app.delete('/api/comments/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'invalid id' });
+  try {
+    const c = await getCommentById(id);
+    if (!c) return res.status(404).json({ error: 'not found' });
+    const access = await canAccessRoom(req, c.room_id, { allowPublicRead: false });
+    const isAdmin = isAdminUser(req);
+    const isOwner = access.ok && String(access.role) === 'owner';
+    const isAuthor = Number(c.user_id) === Number(req.user.id);
+    if (!isAdmin && !isOwner && !isAuthor) return res.status(403).json({ error: 'forbidden' });
+    await deleteCommentById(id);
+    await logAction(req, 'comment_delete', { room: c.room_id, commentId: id });
+    res.json({ ok: true });
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
 
@@ -150,20 +594,47 @@ app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, path: "/ws" });
 
+const PORT = Number(process.env.PORT) || 3001;
+
+server.on("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use.`);
+    console.error("Tip: stop the other process, or run with a different port, e.g. in PowerShell: $env:PORT=3002; npm start");
+    process.exit(1);
+  }
+  console.error("HTTP server error:", err);
+  process.exit(1);
+});
+
+wss.on("error", (err) => {
+  console.error("WebSocket server error:", err);
+});
+
 function getOrInitRoom(room) {
   if (!roomState.has(room)) {
     roomState.set(room, {
       nodes: [{ id: "root", position: { x: 0, y: 0 }, data: { label: "Главна тема" }, type: "default" }],
       edges: [],
+      participants: [],
+      chat: [],
+      cursors: {},
     });
   }
   return roomState.get(room);
 }
 
 wss.on("connection", (ws) => {
-  ws.meta = { room: null, name: "guest" };
+  ws.meta = {
+    room: null,
+    name: "guest",
+    clientId: crypto.randomBytes(6).toString('hex'),
+    user: null,
+    role: 'guest',
+    canWrite: false,
+    canRead: false,
+  };
 
-  ws.on("message", (buf) => {
+  ws.on("message", async (buf) => {
     let msg;
     try {
       msg = JSON.parse(buf.toString());
@@ -172,11 +643,53 @@ wss.on("connection", (ws) => {
     }
 
     if (msg.type === "join") {
-      ws.meta.room = (msg.room || "demo").toString();
-      ws.meta.name = (msg.name || "guest").toString();
+      const nextRoom = (msg.room || "demo").toString().trim() || 'demo';
+      const token = typeof msg.token === 'string' ? msg.token.trim() : '';
+      const claimedUser = token ? verifyToken(token) : null;
+
+      const access = await accessForRoomAndUser(nextRoom, claimedUser, { allowPublicRead: true });
+      if (!access.ok) {
+        try {
+          ws.send(JSON.stringify({ type: 'error', room: nextRoom, error: access.error || 'forbidden' }));
+        } catch {}
+        try { ws.close(); } catch {}
+        return;
+      }
+
+      ws.meta.room = nextRoom;
+      ws.meta.user = claimedUser;
+      ws.meta.role = access.role;
+      ws.meta.canWrite = !!access.canWrite;
+      ws.meta.canRead = !!access.canRead;
+
+      const safeNameFromMsg = (msg.name || "guest").toString().slice(0, 40);
+      const userDisplay = claimedUser
+        ? (claimedUser.username || claimedUser.email || safeNameFromMsg)
+        : safeNameFromMsg;
+      ws.meta.name = String(userDisplay).slice(0, 40);
 
       const state = getOrInitRoom(ws.meta.room);
+      if (!state.participants.find((p) => p.clientId === ws.meta.clientId)) {
+        state.participants.push({
+          clientId: ws.meta.clientId,
+          name: ws.meta.name,
+          role: ws.meta.role,
+          userId: claimedUser?.id ?? null,
+        });
+      }
+
+      ws.send(JSON.stringify({
+        type: 'hello',
+        room: ws.meta.room,
+        clientId: ws.meta.clientId,
+        role: ws.meta.role,
+        canWrite: ws.meta.canWrite,
+      }));
+
       ws.send(JSON.stringify({ type: "state", room: ws.meta.room, nodes: state.nodes, edges: state.edges }));
+      ws.send(JSON.stringify({ type: 'presence', room: ws.meta.room, participants: state.participants }));
+      ws.send(JSON.stringify({ type: 'chat-history', room: ws.meta.room, messages: state.chat }));
+      ws.send(JSON.stringify({ type: 'cursors', room: ws.meta.room, cursors: state.cursors }));
 
       broadcast(
         ws.meta.room,
@@ -187,25 +700,74 @@ wss.on("connection", (ws) => {
         },
         ws
       );
+
+      broadcast(ws.meta.room, { type: 'presence', room: ws.meta.room, participants: state.participants }, null);
       return;
     }
 
     if (msg.type === "update") {
-      const room = (msg.room || ws.meta.room || "demo").toString();
-      const name = (msg.name || ws.meta.name || "guest").toString();
-      ws.meta.room = room;
-      ws.meta.name = name;
+      if (!ws.meta.room) return;
+      const room = ws.meta.room;
+
+      if (!ws.meta.canWrite) {
+        try {
+          ws.send(JSON.stringify({ type: 'toast', room, message: 'Нямаш права за редакция (Viewer).' }));
+        } catch {}
+        return;
+      }
 
       const safeNodes = Array.isArray(msg.nodes) ? msg.nodes : [];
       const safeEdges = Array.isArray(msg.edges) ? msg.edges : [];
-      roomState.set(room, { nodes: safeNodes, edges: safeEdges });
+      const state = getOrInitRoom(room);
+      state.nodes = safeNodes;
+      state.edges = safeEdges;
 
       broadcast(room, { type: "state", room, nodes: safeNodes, edges: safeEdges }, ws);
+    }
+
+    if (msg.type === 'cursor') {
+      if (!ws.meta.room) return;
+      const room = ws.meta.room;
+      const x = Number(msg.x);
+      const y = Number(msg.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const state = getOrInitRoom(room);
+      state.cursors[ws.meta.clientId] = {
+        clientId: ws.meta.clientId,
+        name: ws.meta.name,
+        role: ws.meta.role,
+        x,
+        y,
+        at: new Date().toISOString(),
+      };
+      broadcast(room, { type: 'cursor', room, cursor: state.cursors[ws.meta.clientId] }, null);
+    }
+
+    if (msg.type === 'chat') {
+      if (!ws.meta.room) return;
+      const room = ws.meta.room;
+      const name = ws.meta.name;
+      const text = String(msg.text || '').trim().slice(0, 800);
+      if (!text) return;
+      const state = getOrInitRoom(room);
+      const entry = { id: crypto.randomBytes(6).toString('hex'), at: new Date().toISOString(), name, text, role: ws.meta.role };
+      state.chat.push(entry);
+      if (state.chat.length > 50) state.chat.splice(0, state.chat.length - 50);
+      broadcast(room, { type: 'chat', room, message: entry }, null);
     }
   });
 
   ws.on("close", () => {
     if (!ws.meta.room) return;
+    const state = roomState.get(ws.meta.room);
+    if (state?.participants) {
+      state.participants = state.participants.filter((p) => p.clientId !== ws.meta.clientId);
+      broadcast(ws.meta.room, { type: 'presence', room: ws.meta.room, participants: state.participants }, null);
+    }
+    if (state?.cursors && state.cursors[ws.meta.clientId]) {
+      delete state.cursors[ws.meta.clientId];
+      broadcast(ws.meta.room, { type: 'cursors', room: ws.meta.room, cursors: state.cursors }, null);
+    }
     broadcast(
       ws.meta.room,
       {
@@ -228,8 +790,6 @@ function broadcast(room, payload, exceptWs) {
   });
 }
 
-const PORT = 3000;
-
 async function ensureAdminUser() {
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
@@ -250,6 +810,12 @@ async function start() {
   try {
     await initDatabase();
     await ensureAdminUser();
+    try {
+      const r = await seedAiExamplesIfEmpty();
+      if (r && r.seeded) console.log(`Seeded AI examples: ${r.seeded}`);
+    } catch (e) {
+      console.warn("AI examples seed skipped:", e?.message || e);
+    }
     server.listen(PORT, () => {
       console.log(`API: http://localhost:${PORT}`);
       console.log(`WS : ws://localhost:${PORT}/ws`);

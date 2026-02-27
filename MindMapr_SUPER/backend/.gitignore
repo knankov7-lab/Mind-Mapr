@@ -78,6 +78,11 @@ jspm_packages/
 # dotenv environment variables file
 .env
 
+# Local SQLite DB artifacts
+*.db-wal
+*.db-shm
+*.db-journal
+
 # next.js build output
 .next
 

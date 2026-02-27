@@ -81,6 +81,13 @@ jspm_packages/
 # next.js build output
 .next
 
+# CRA build output
+/build
+
+# dotenv environment variables files
+.env*
+!.env.example
+
 # Lerna
 lerna-debug.log
 

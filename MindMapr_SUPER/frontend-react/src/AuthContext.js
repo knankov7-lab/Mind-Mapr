@@ -10,13 +10,30 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
+  function decodeJwtPayload(jwtToken) {
+    if (!jwtToken) return null;
+    const parts = String(jwtToken).split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1];
+
+    // base64url -> base64
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    try {
+      const json = atob(padded);
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+
   useEffect(() => {
     if (token) {
       // Decode token to get user info (simple decode, in production use a library)
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = decodeJwtPayload(token);
+      if (payload) {
         setUser(payload);
-      } catch (e) {
+      } else {
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
