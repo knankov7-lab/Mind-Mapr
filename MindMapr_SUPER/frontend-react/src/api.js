@@ -4,15 +4,21 @@ function inferApiBaseUrl() {
   const fromEnv = process.env.REACT_APP_API_BASE_URL;
   if (fromEnv) return fromEnv;
 
-  // CRA dev server typically runs on 3000, but if it's taken it may switch to 3001.
-  // Our backend tends to run on the other port in dev.
   if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
     const port = String(window.location.port || '');
-    if (port === '3000') return 'http://localhost:3001/api';
-    if (port === '3001') return 'http://localhost:3000/api';
+
+    // Local dev default: CRA on 3001, backend on 3000.
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && port === '3001') {
+      return `${protocol}//${hostname}:3000/api`;
+    }
+
+    // Otherwise prefer same-origin API.
+    return `${window.location.origin}/api`;
   }
 
-  return 'http://localhost:3001/api';
+  return 'http://localhost:3000/api';
 }
 
 const API_BASE_URL = inferApiBaseUrl();
