@@ -652,7 +652,17 @@ wss.on("connection", (ws) => {
         try {
           ws.send(JSON.stringify({ type: 'error', room: nextRoom, error: access.error || 'forbidden' }));
         } catch {}
-        try { ws.close(); } catch {}
+        try {
+          ws.send(
+            JSON.stringify({
+              type: 'hello',
+              room: nextRoom,
+              clientId: ws.meta.clientId,
+              role: ws.meta.role || 'guest',
+              canWrite: false,
+            })
+          );
+        } catch {}
         return;
       }
 
