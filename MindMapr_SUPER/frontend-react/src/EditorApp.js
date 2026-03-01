@@ -194,6 +194,10 @@ export default function EditorApp() {
 
   const loadMeta = useCallback(async () => {
     if (!room) return;
+    if (!isAuthenticated) {
+      setMeta({ name: "", description: "", tags: "" });
+      return;
+    }
     try {
       const res = await roomsAPI.getMeta(room);
       setMeta({
@@ -204,7 +208,7 @@ export default function EditorApp() {
     } catch {
       // ignore (room may be private / forbidden)
     }
-  }, [room]);
+  }, [room, isAuthenticated]);
 
   useEffect(() => {
     loadMeta();
@@ -300,13 +304,17 @@ export default function EditorApp() {
 
   const loadComments = useCallback(async () => {
     if (!room) return;
+    if (!isAuthenticated) {
+      setComments([]);
+      return;
+    }
     try {
       const res = await commentsAPI.list(room, 200);
       setComments(res.data?.comments || []);
     } catch {
       setComments([]);
     }
-  }, [room]);
+  }, [room, isAuthenticated]);
 
   useEffect(() => {
     loadComments();
