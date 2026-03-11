@@ -24,20 +24,12 @@ function inferWsUrl() {
   if (fromEnv) return fromEnv;
 
   if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    const port = String(window.location.port || '');
-
-    // Local dev default: CRA on 3001, backend on 3000.
-    if ((hostname === 'localhost' || hostname === '127.0.0.1') && port === '3001') {
-      return `ws://${hostname}:3000/ws`;
-    }
-
-    // Otherwise prefer same-origin WebSocket endpoint.
-    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${wsProto}//${window.location.host}/ws`;
+    // Prefer same-origin WebSocket endpoint so CRA dev proxy can forward to backend.
+    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${wsProto}://${window.location.host}/ws`;
   }
 
-  return 'ws://localhost:3000/ws';
+  return 'ws://localhost:3001/ws';
 }
 
 const WS = inferWsUrl();

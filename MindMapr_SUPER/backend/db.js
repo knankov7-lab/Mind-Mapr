@@ -168,6 +168,19 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_comments_room_created_at ON comments(room_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_password_resets_user_expires ON password_resets(user_id, expires_at DESC);
+
+    CREATE TABLE IF NOT EXISTS invites (
+      token TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      expires_at DATETIME,
+      created_by INTEGER,
+      single_use INTEGER DEFAULT 0,
+      used_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_invites_room ON invites(room_id);
   `);
 
   // Lightweight migrations
@@ -578,6 +591,35 @@ async function countAiExamples() {
   return Number(row?.cnt || 0);
 }
 
+// Invites
+async function insertInvite(token, roomId, role, expiresAtIso = null, createdBy = null, singleUse = 0) {
+  const t = String(token || '').trim();
+  const rid = String(roomId || '').trim();
+  const r = String(role || 'viewer').toLowerCase();
+  if (!t) throw new Error('token required');
+  if (!rid) throw new Error('room required');
+  const safeSingle = singleUse ? 1 : 0;
+  return run(
+    'INSERT INTO invites (token, room_id, role, expires_at, created_by, single_use) VALUES (?, ?, ?, ?, ?, ?)',
+    [t, rid, r, expiresAtIso || null, createdBy == null ? null : Number(createdBy), safeSingle]
+  );
+}
+
+async function getInviteByToken(token) {
+  if (!token) return null;
+  return get('SELECT token, room_id, role, expires_at, created_by, single_use, used_at, created_at FROM invites WHERE token = ?', [String(token)]);
+}
+
+async function deleteInviteByToken(token) {
+  if (!token) return null;
+  return run('DELETE FROM invites WHERE token = ?', [String(token)]);
+}
+
+async function markInviteUsed(token) {
+  if (!token) return null;
+  return run('UPDATE invites SET used_at = CURRENT_TIMESTAMP WHERE token = ?', [String(token)]);
+}
+
 module.exports = {
   initDatabase,
   // low-level helpers (used by admin routes)
@@ -636,4 +678,9 @@ module.exports = {
   insertAiExample,
   deleteAiExampleById,
   countAiExamples,
+  // Invites
+  insertInvite,
+  getInviteByToken,
+  deleteInviteByToken,
+  markInviteUsed,
 };

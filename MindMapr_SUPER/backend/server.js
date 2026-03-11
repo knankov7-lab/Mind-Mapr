@@ -594,7 +594,7 @@ app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, path: "/ws" });
 
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 3000;
 
 server.on("error", (err) => {
   if (err && err.code === "EADDRINUSE") {
@@ -647,7 +647,26 @@ wss.on("connection", (ws) => {
       const token = typeof msg.token === 'string' ? msg.token.trim() : '';
       const claimedUser = token ? verifyToken(token) : null;
 
-      const access = await accessForRoomAndUser(nextRoom, claimedUser, { allowPublicRead: true });
+      const inviteToken = typeof msg.invite === 'string' ? msg.invite.trim() : '';
+      let invite = null;
+      if (inviteToken) {
+        try { invite = await getInviteByToken(inviteToken); } catch (_) { invite = null; }
+      }
+
+      let access = await accessForRoomAndUser(nextRoom, claimedUser, { allowPublicRead: true });
+
+      // If normal access denied, but an invite token exists and is valid for this room, allow join according to invite.
+      if (!access.ok && invite) {
+        let expired = false;
+        try { if (invite.expires_at) expired = Date.now() > new Date(invite.expires_at).getTime(); } catch (_) { expired = true; }
+        const used = !!invite.used_at && Number(invite.single_use) === 1;
+        if (!expired && !used && String(invite.room_id) === String(nextRoom)) {
+          access = { ok: true, room: await getRoomById(nextRoom), role: invite.role, canWrite: (invite.role === 'owner' || invite.role === 'editor') };
+        } else {
+          invite = null;
+        }
+      }
+
       if (!access.ok) {
         try {
           ws.send(JSON.stringify({ type: 'error', room: nextRoom, error: access.error || 'forbidden' }));
@@ -712,6 +731,12 @@ wss.on("connection", (ws) => {
       );
 
       broadcast(ws.meta.room, { type: 'presence', room: ws.meta.room, participants: state.participants }, null);
+
+      // If invite was single-use, mark it used
+      if (invite && Number(invite.single_use) === 1) {
+        try { await markInviteUsed(invite.token); } catch (_) {}
+      }
+
       return;
     }
 
@@ -805,15 +830,32 @@ async function ensureAdminUser() {
   const adminPassword = process.env.ADMIN_PASSWORD;
   const adminUsername = process.env.ADMIN_USERNAME || "admin";
 
-  if (!adminEmail || !adminPassword) return;
+  // If explicit admin credentials provided via env, use them.
+  if (adminEmail && adminPassword) {
+    const normalizedEmail = String(adminEmail).trim().toLowerCase();
+    const existing = await getUserByEmail(normalizedEmail);
+    if (!existing) {
+      const passwordHash = await hashPassword(adminPassword);
+      await insertUser(normalizedEmail, adminUsername, passwordHash, "admin");
+      console.log("Seeded admin user from ADMIN_EMAIL/ADMIN_PASSWORD.");
+    }
+    return;
+  }
 
-  const normalizedEmail = String(adminEmail).trim().toLowerCase();
-  const existing = await getUserByEmail(normalizedEmail);
-  if (existing) return;
-
-  const passwordHash = await hashPassword(adminPassword);
-  await insertUser(normalizedEmail, adminUsername, passwordHash, "admin");
-  console.log("Seeded admin user from ADMIN_EMAIL/ADMIN_PASSWORD.");
+  // Local dev fallback: if there are no users at all, create a default admin account.
+  try {
+    const row = await get('SELECT COUNT(1) as cnt FROM users');
+    const count = row?.cnt || 0;
+    if (Number(count) === 0) {
+      const fallbackEmail = 'admin@local';
+      const fallbackPassword = 'admin';
+      const passwordHash = await hashPassword(fallbackPassword);
+      await insertUser(fallbackEmail, adminUsername, passwordHash, 'admin');
+      console.log(`Seeded default admin user: ${fallbackEmail} / ${fallbackPassword}`);
+    }
+  } catch (e) {
+    // ignore errors seeding dev admin
+  }
 }
 
 async function start() {

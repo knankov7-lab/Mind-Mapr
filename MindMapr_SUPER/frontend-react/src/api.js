@@ -15,10 +15,11 @@ function inferApiBaseUrl() {
     }
 
     // Otherwise prefer same-origin API.
-    return `${window.location.origin}/api`;
+    // Prefer relative path so CRA dev proxy forwards to backend during development.
+    return '/api';
   }
 
-  return 'http://localhost:3000/api';
+  return '/api';
 }
 
 const API_BASE_URL = inferApiBaseUrl();
