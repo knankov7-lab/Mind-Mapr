@@ -56,7 +56,7 @@ export default function EditorApp() {
       const res = await mapsAPI.load(roomId);
       const data = res.data;
       if (!data?.nodes) return showToast("Невалиден запис.");
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges || []);
       scheduleBroadcast(data.nodes, data.edges || []);
       showToast("Картата е заредена.");
@@ -116,6 +116,17 @@ export default function EditorApp() {
     { id: "root", position: { x: 0, y: 0 }, data: { label: "Главна тема" }, type: "default" }
   ]);
   const [edges, setEdges] = useState([]);
+
+  // Ensure nodes always have a type and a default shape
+  const normalizeNodes = useCallback((arr) => {
+    if (!Array.isArray(arr)) return [];
+    return arr.map((n) => ({
+      id: String(n.id),
+      position: n.position || { x: 0, y: 0 },
+      type: n.type || 'default',
+      data: { ...(n.data || {}), shape: (n.data && n.data.shape) || 'rect' },
+    }));
+  }, []);
 
   const wsRef = useRef(null);
   const suppressRemoteRef = useRef(false);
@@ -221,13 +232,13 @@ export default function EditorApp() {
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
-        if (msg.type === "state" && msg.room === room) {
-          suppressRemoteRef.current = true;
-          setNodes(msg.nodes || []);
-          setEdges(msg.edges || []);
-          setLastSync(new Date().toLocaleTimeString());
-          window.setTimeout(() => (suppressRemoteRef.current = false), 0);
-        }
+          if (msg.type === "state" && msg.room === room) {
+            suppressRemoteRef.current = true;
+            setNodes(normalizeNodes(msg.nodes || []));
+            setEdges(msg.edges || []);
+            setLastSync(new Date().toLocaleTimeString());
+            window.setTimeout(() => (suppressRemoteRef.current = false), 0);
+          }
         if (msg.type === "toast" && msg.room === room) {
           showToast(msg.message || "Обновление от екипа");
         }
@@ -535,9 +546,10 @@ export default function EditorApp() {
     if (selectedIds.has("root")) return alert("Главната тема не може да се изтрие.");
     const nextNodes = nodes.filter((n) => !selectedIds.has(n.id));
     const nextEdges = edges.filter((e) => !selectedIds.has(e.source) && !selectedIds.has(e.target));
-    setNodes(nextNodes);
+    const normalized = normalizeNodes(nextNodes);
+    setNodes(normalized);
     setEdges(nextEdges);
-    scheduleBroadcast(nextNodes, nextEdges);
+    scheduleBroadcast(normalized, nextEdges);
   }, [canEdit, nodes, edges, scheduleBroadcast]);
 
   const setShapeForSelected = useCallback((shape) => {
@@ -577,7 +589,7 @@ export default function EditorApp() {
       const res = await mapsAPI.load(room);
       const data = res.data;
       if (!data?.nodes) return showToast("Невалиден запис.");
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges || []);
       scheduleBroadcast(data.nodes, data.edges || []);
       showToast("Заредено.");
@@ -591,7 +603,7 @@ export default function EditorApp() {
       const res = await mapsAPI.loadSave(saveId);
       const data = res.data;
       if (!data?.nodes) return showToast("Невалиден запис.");
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges || []);
       scheduleBroadcast(data.nodes, data.edges || []);
       setShowHistory(false);
@@ -766,7 +778,7 @@ export default function EditorApp() {
       if (!Array.isArray(data?.nodes)) return showToast("Невалиден импорт (nodes). ");
       if (!Array.isArray(data?.edges)) return showToast("Невалиден импорт (edges). ");
 
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges);
       if (data?.meta && typeof data.meta === "object") {
         setMeta((m) => ({
@@ -819,7 +831,7 @@ export default function EditorApp() {
       const data = JSON.parse(text);
       if (!Array.isArray(data?.nodes)) return showToast("Невалиден файл (nodes).");
       if (!Array.isArray(data?.edges)) return showToast("Невалиден файл (edges).");
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges);
       scheduleBroadcast(data.nodes, data.edges);
       showToast("Импортът е успешен.");
