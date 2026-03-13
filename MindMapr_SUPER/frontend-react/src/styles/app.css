@@ -215,9 +215,11 @@ kbd{
   box-shadow: 0 2px 12px #7c5cff33;
 }
 .btn.ghost{
-  background: rgba(255,255,255,.11);
-  color: #e9eeff;
+  background: rgba(255,255,255,.08);
+  color: #eef2ff;
 }
+.btn.ghost:hover{ background: rgba(255,255,255,.12); }
+.btn.ghost:active{ transform: translateY(1px) scale(.998); }
 .btn.warn{
   background: rgba(255,221,87,.18);
   border:1.5px solid rgba(255,221,87,.32);
@@ -414,21 +416,21 @@ kbd{
   backdrop-filter: blur(8px);
 }
 .dialog{
-  width: min(560px, 96vw);
-  max-height: min(640px, 86vh);
+  width: min(600px, 96vw);
+  max-height: min(720px, 88vh);
   overflow:hidden;
-  padding:22px 20px;
-  border-radius: 18px;
+  padding:20px 22px;
+  border-radius: 16px;
   color: var(--text);
-  background: linear-gradient(120deg, rgba(18,26,46,.96) 60%, rgba(124,92,255,.16) 100%);
-  border: 1px solid rgba(124,92,255,.22);
-  box-shadow: 0 24px 80px rgba(0,0,0,.55);
+  background: linear-gradient(120deg, rgba(18,26,46,.98) 50%, rgba(124,92,255,.10) 100%);
+  border: 1px solid rgba(124,92,255,.18);
+  box-shadow: 0 20px 60px rgba(0,0,0,.55);
 }
 .dialog h3{
-  margin:0 0 14px 0;
-  font-size:18px;
+  margin:0 0 12px 0;
+  font-size:19px;
   font-weight:900;
-  color:#f3f5ff;
+  color:#f7f8ff;
 }
 .dialog-error{
   margin:10px 0 10px 0;
@@ -441,7 +443,7 @@ kbd{
 .dialog-list{
   margin: 0 0 14px 0;
   padding: 0;
-  max-height: 320px;
+  max-height: 420px;
   overflow:auto;
 }
 .dialog-listItem{
@@ -471,6 +473,22 @@ kbd{
   width:auto;
   min-width: 92px;
 }
+/* Card-style rows inside dialog */
+.dialog-card{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 16px;
+  border-radius:12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+  border: 1px solid rgba(255,255,255,.045);
+}
+.dialog-card:hover{ transform: translateY(-3px); box-shadow: 0 12px 38px rgba(0,0,0,.52); }
+.dialog-cardMain{ flex:1; display:flex; align-items:flex-start; flex-direction:column; }
+.dialog-cardActions{ display:flex; gap:8px; align-items:center; }
+.dialog-room{ font-weight:900; font-size:15px; color: #ffffffcc; }
+.dialog-meta{ color:#b9c6e6; font-size:13px; margin-top:6px; }
 .canvasWrap{
   background: rgba(12,16,32,.45);
   border:1px solid rgba(255,255,255,.10);

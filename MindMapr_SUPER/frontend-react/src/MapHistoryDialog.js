@@ -45,27 +45,33 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
         <ul className="dialog-list">
           {items.map((sv) => (
             <li key={sv.id} className="dialog-listItem">
-              <div className="dialog-listRow">
-                <button
-                  className="btn ghost dialog-listButton"
-                  onClick={() => onRestore?.(sv.id)}
-                  title="Възстанови тази версия"
-                >
-                  Версия #{sv.id} <span className="small">({new Date(sv.created_at).toLocaleString()})</span>
-                </button>
-                <button
-                  className="btn ghost dialog-deleteButton"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard?.writeText(String(sv.id));
-                    } catch {
-                      setError("Не успях да копирам ID.");
-                    }
-                  }}
-                  title="Копирай ID"
-                >
-                  ⎘ ID
-                </button>
+              <div className="dialog-card">
+                <div className="dialog-cardMain">
+                  <button
+                    className="btn ghost dialog-listButton"
+                    onClick={() => onRestore?.(sv.id)}
+                    title="Възстанови тази версия"
+                  >
+                    <div className="dialog-room">Версия #{sv.id}</div>
+                    <div className="dialog-meta small">{new Date(sv.created_at).toLocaleString()}</div>
+                  </button>
+                </div>
+                <div className="dialog-cardActions">
+                  <button
+                    className="btn ghost dialog-deleteButton"
+                    aria-label={`Копирай ID ${sv.id}`}
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard?.writeText(String(sv.id));
+                      } catch {
+                        setError("Не успях да копирам ID.");
+                      }
+                    }}
+                    title="Копирай ID"
+                  >
+                    ⎘ Копирай ID
+                  </button>
+                </div>
               </div>
             </li>
           ))}
