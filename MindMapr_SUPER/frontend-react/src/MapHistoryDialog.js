@@ -1,10 +1,14 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { mapsAPI } from "./api";
+import ReactFlow, { Background } from 'reactflow';
+import 'reactflow/dist/style.css';
 
 export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState(null); // { id, nodes, edges }
+  const previewRef = useRef(null);
 
   const refresh = useCallback(async () => {
     if (!room) return;
@@ -29,6 +33,18 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
 
   if (!open) return null;
 
+  const showPreview = async (id) => {
+    try {
+      const res = await mapsAPI.loadSave(id);
+      setPreview({ id, nodes: res.data.nodes || [], edges: res.data.edges || [] });
+      setTimeout(() => previewRef.current?.fitView?.(), 120);
+    } catch {
+      setPreview(null);
+    }
+  };
+
+  const clearPreview = () => setPreview(null);
+
   return (
     <div
       className="dialog-overlay"
@@ -45,7 +61,11 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
         <ul className="dialog-list">
           {items.map((sv) => (
             <li key={sv.id} className="dialog-listItem">
-              <div className="dialog-card">
+              <div
+                className="dialog-card"
+                onMouseEnter={() => showPreview(sv.id)}
+                onMouseLeave={clearPreview}
+              >
                 <div className="dialog-cardMain">
                   <button
                     className="btn ghost dialog-listButton"
@@ -76,7 +96,6 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
             </li>
           ))}
         </ul>
-
         <div className="row" style={{ justifyContent: "space-between" }}>
           <button className="btn ghost" onClick={refresh} disabled={loading}>
             ↻ Обнови
@@ -85,6 +104,24 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
             Затвори
           </button>
         </div>
+        {preview ? (
+          <div className="history-preview">
+            <ReactFlow
+              nodes={preview.nodes}
+              edges={preview.edges}
+              fitView
+              onInit={(inst) => { previewRef.current = inst; inst.fitView(); }}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              panOnScroll={false}
+              zoomOnScroll={false}
+              zoomOnPinch={false}
+              panOnDrag={false}
+            >
+              <Background gap={12} />
+            </ReactFlow>
+          </div>
+        ) : null}
       </div>
     </div>
   );
