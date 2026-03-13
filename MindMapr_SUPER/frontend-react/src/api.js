@@ -66,19 +66,11 @@ export const roomsAPI = {
   getMeta: (room) => api.get(`/rooms/meta?room=${encodeURIComponent(room)}`),
   updateMeta: (room, { name, description, tags } = {}) => api.put('/rooms/meta', { room, name, description, tags }),
 };
-
-export const aiAPI = {
-  analyze: (nodes, edges) => api.post('/ai/analyze', { nodes, edges }),
-  generateMap: (topic) => api.post('/ai/generate-map', { topic }),
-};
-
 export const adminAPI = {
   getUsers: () => api.get('/admin/users'),
   getRooms: () => api.get('/admin/rooms'),
   getLogs: (limit = 200) => api.get(`/admin/logs?limit=${encodeURIComponent(limit)}`),
-  listAiExamples: (intent, limit = 20) => api.get(`/admin/ai/examples?intent=${encodeURIComponent(intent)}&limit=${encodeURIComponent(limit)}`),
-  createAiExample: ({ intent, input, output, tags } = {}) => api.post('/admin/ai/examples', { intent, input, output, tags }),
-  deleteAiExample: (id) => api.delete(`/admin/ai/examples/${encodeURIComponent(id)}`),
+  // AI examples endpoints removed from active API surface (archived)
 };
 
 export const teamsAPI = {

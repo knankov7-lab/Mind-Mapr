@@ -14,7 +14,7 @@ import QRCode from "qrcode";
 import jsQR from "jsqr";
 import LZString from "lz-string";
 import { useAuth } from "./AuthContext";
-import { mapsAPI, aiAPI, roomsAPI, commentsAPI } from "./api";
+import { mapsAPI, roomsAPI, commentsAPI } from "./api";
 import AdminPanel from "./AdminPanel";
 import MapListDialog from "./MapListDialog";
 import MapHistoryDialog from "./MapHistoryDialog";
@@ -71,9 +71,7 @@ export default function EditorApp() {
   const [lastSync, setLastSync] = useState(null);
   const [toast, setToast] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
-  const [aiResult, setAiResult] = useState(null);
-  const [aiTopic, setAiTopic] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
+  // AI features archived: ai state removed
   const [authForm, setAuthForm] = useState({ email: "", password: "", username: "" });
   const [authError, setAuthError] = useState("");
 
@@ -840,34 +838,7 @@ export default function EditorApp() {
     setAuthForm((prev) => ({ ...prev, password: "" }));
   }, [authForm.email, authForm.password, authForm.username, register, showToast]);
 
-  const runAI = useCallback(async () => {
-    setAiResult(null);
-    try {
-      const res = await aiAPI.analyze(nodes, edges);
-      setAiResult(res.data);
-      showToast("AI анализ готов.");
-    } catch (error) {
-      showToast("Грешка при AI анализ: " + (error.response?.data?.error || error.message));
-    }
-  }, [nodes, edges, showToast]);
-
-  const generateMindMap = useCallback(async () => {
-    if (!aiTopic.trim()) {
-      showToast("Въведи тема за генериране.");
-      return;
-    }
-    setAiLoading(true);
-    try {
-      const res = await aiAPI.generateMap(aiTopic);
-      setNodes(res.data.nodes);
-      setEdges(res.data.edges);
-      showToast("Генерирана мисловна карта по тема: " + aiTopic);
-    } catch (error) {
-      showToast("Грешка при AI генериране: " + (error.response?.data?.error || error.message));
-    } finally {
-      setAiLoading(false);
-    }
-  }, [aiTopic, showToast]);
+  // AI helper functions archived
 
   const shareLink = useMemo(() => {
     const u = new URL(window.location.href);
@@ -1135,51 +1106,7 @@ export default function EditorApp() {
             </div>
           </div>
 
-          <div className="section">
-            <h3>AI асистент</h3>
-            <div className="col" style={{ gap: 10 }}>
-              <div className="row">
-                <input
-                  className="input"
-                  value={aiTopic}
-                  onChange={(e) => setAiTopic(e.target.value)}
-                  placeholder="Въведи тема (например: Екология)"
-                  disabled={aiLoading}
-                />
-                <button className="btn primary" onClick={generateMindMap} disabled={aiLoading}>
-                  {aiLoading ? "Генерира..." : "🧠 Генерирай карта"}
-                </button>
-              </div>
-              <div className="row">
-                <button className="btn ghost" onClick={runAI}>
-                  🤖 Анализирай текущата карта
-                </button>
-              </div>
-            </div>
-            {aiResult ? (
-              <div style={{ marginTop: 10 }}>
-                <div className="pill" style={{ marginBottom: 8 }}>
-                  🧾 Обобщение
-                </div>
-                <div className="small" style={{ whiteSpace: "pre-wrap" }}>
-                  {aiResult.summary}
-                </div>
-                <div style={{ height: 8 }} />
-                <div className="pill" style={{ marginBottom: 8 }}>
-                  ✨ Предложения
-                </div>
-                <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
-                  {(aiResult.suggestions || []).map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="small" style={{ marginTop: 8 }}>
-                AI дава предложения за структура и липсващи теми на базата на възлите/връзките.
-              </div>
-            )}
-          </div>
+          {/* AI assistant archived and removed from active UI */}
 
           <div className="footerNote">
             Съвет: влачи възлите с мишка. Свързвай възли като дърпаш от точката на възела към друг възел.

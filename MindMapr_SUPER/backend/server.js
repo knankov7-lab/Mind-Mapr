@@ -524,71 +524,9 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/ai/analyze", guestLimiter, (req, res) => {
-  const { nodes = [], edges = [] } = req.body || {};
-  const n = Array.isArray(nodes) ? nodes.length : 0;
-  const e = Array.isArray(edges) ? edges.length : 0;
-
-  const suggestions = [];
-  if (n < 4) suggestions.push("Добави поне 3–5 под-теми към главната тема.");
-  if (e < Math.max(1, n - 1)) suggestions.push("Свържи повече възли, за да се виждат зависимости.");
-  const leafs = new Set((nodes || []).map((x) => x.id));
-  (edges || []).forEach((ed) => {
-    if (ed.source) leafs.delete(ed.source);
-  });
-  if (leafs.size > 2) suggestions.push("Има много крайни възли - помисли за групиране/подтематика.");
-
-  res.json({
-    summary: `Картата съдържа ${n} възела и ${e} връзки. Структурата е ${n > 8 ? "богата" : "компактна"}.`,
-    suggestions: suggestions.length
-      ? suggestions
-      : ["Структурата изглежда добра. Добави конкретни примери към ключовите възли."],
-  });
-});
+// AI analyze endpoint archived (moved to archive/ai branch)
 
 const adminRouter = require('./admin');
-const ai = require('./ai');
-// Generate mind map from topic
-app.post('/api/ai/generate-map', async (req, res) => {
-  try {
-    const topic = req.body.topic || '';
-    if (!topic.trim()) return res.status(400).json({ error: 'Topic required' });
-    const result = await ai.generateMindMap(topic);
-    res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-// AI endpoints
-app.post('/api/ai/suggest-nodes', async (req, res) => {
-  try {
-    const nodes = req.body.nodes || [];
-    const suggestions = await ai.suggestNewNodes(nodes);
-    res.json({ suggestions });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/ai/propose-links', async (req, res) => {
-  try {
-    const nodes = req.body.nodes || [];
-    const links = ai.proposeLinks(nodes);
-    res.json({ links });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/ai/analyze-activity', async (req, res) => {
-  try {
-    const log = req.body.activityLog || [];
-    const suggestions = ai.analyzeActivity(log);
-    res.json({ suggestions });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
 app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 
 const server = http.createServer(app);
