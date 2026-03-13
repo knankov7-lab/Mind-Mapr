@@ -15,6 +15,7 @@ import jsQR from "jsqr";
 import LZString from "lz-string";
 import { useAuth } from "./AuthContext";
 import { mapsAPI, roomsAPI, commentsAPI } from "./api";
+import CustomNode from './CustomNode';
 import AdminPanel from "./AdminPanel";
 import MapListDialog from "./MapListDialog";
 import MapHistoryDialog from "./MapHistoryDialog";
@@ -419,9 +420,11 @@ export default function EditorApp() {
     const nextNodes = [...nodes, newNode];
     const nextEdges = [...edges, newEdge];
 
-    setNodes(nextNodes);
+    // default shape for new nodes
+    const shapedNodes = nextNodes.map(n => ({ ...n, data: { ...(n.data||{}), shape: (n.data && n.data.shape) || 'rect' } }));
+    setNodes(shapedNodes);
     setEdges(nextEdges);
-    scheduleBroadcast(nextNodes, nextEdges);
+    scheduleBroadcast(shapedNodes, nextEdges);
   }, [canEdit, nodes, edges, scheduleBroadcast]);
 
   const renderChat = () => (
@@ -535,6 +538,25 @@ export default function EditorApp() {
     setNodes(nextNodes);
     setEdges(nextEdges);
     scheduleBroadcast(nextNodes, nextEdges);
+  }, [canEdit, nodes, edges, scheduleBroadcast]);
+
+  const setShapeForSelected = useCallback((shape) => {
+    if (!canEdit) return;
+    let currentNodes = nodes;
+    try {
+      const inst = rfRef.current;
+      if (inst && typeof inst.getNodes === 'function') {
+        const instNodes = inst.getNodes();
+        if (Array.isArray(instNodes) && instNodes.length) currentNodes = instNodes;
+      }
+    } catch {}
+
+    const selectedIds = new Set(currentNodes.filter((n) => n.selected).map((n) => n.id));
+    if (!selectedIds.size) return alert("Маркирай възел(и) и опитай пак.");
+
+    const nextNodes = nodes.map((n) => (selectedIds.has(n.id) ? { ...n, data: { ...(n.data||{}), shape } } : n));
+    setNodes(nextNodes);
+    scheduleBroadcast(nextNodes, edges);
   }, [canEdit, nodes, edges, scheduleBroadcast]);
 
   const saveSnapshot = useCallback(async () => {
@@ -996,6 +1018,13 @@ export default function EditorApp() {
                 <button className="btn ghost" onClick={renameSelected}>
                   ✏️ Преименувай <span className="small">(F2)</span>
                 </button>
+                <div style={{display:'flex',gap:6,alignItems:'center',marginLeft:6}}>
+                  <span className="small" style={{opacity:.9}}>Форма:</span>
+                  <button className="btn ghost" onClick={() => setShapeForSelected('rect')} style={{fontSize:12}}>□</button>
+                  <button className="btn ghost" onClick={() => setShapeForSelected('rounded')} style={{fontSize:12}}>◧</button>
+                  <button className="btn ghost" onClick={() => setShapeForSelected('pill')} style={{fontSize:12}}>—</button>
+                  <button className="btn ghost" onClick={() => setShapeForSelected('circle')} style={{fontSize:12}}>◯</button>
+                </div>
               </div>
               <div className="row">
                 <button className="btn ghost" onClick={deleteSelected}>
@@ -1163,6 +1192,7 @@ export default function EditorApp() {
             elementsSelectable={canEdit}
             edgesUpdatable={canEdit}
             fitView
+            nodeTypes={{ default: CustomNode }}
             proOptions={{ hideAttribution: true }}
           >
             <Background />

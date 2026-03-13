@@ -425,6 +425,23 @@ kbd{
   background: linear-gradient(120deg, rgba(18,26,46,.98) 50%, rgba(124,92,255,.10) 100%);
   border: 1px solid rgba(124,92,255,.18);
   box-shadow: 0 20px 60px rgba(0,0,0,.55);
+
+/* Custom node shapes */
+.customNode {
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  color: #e9eeff;
+  border: 1px solid rgba(124,92,255,0.18);
+  display: inline-block;
+  font-size: 13px;
+  box-shadow: 0 6px 18px rgba(5,8,20,0.36);
+}
+.customNodeLabel{ white-space:nowrap; }
+.shape-rect { border-radius: 6px; }
+.shape-rounded { border-radius: 14px; }
+.shape-pill { border-radius: 999px; padding: 8px 18px; }
+.shape-circle { border-radius: 50%; padding: 14px; min-width: 56px; text-align: center; }
+.shape-diamond { transform: rotate(45deg); padding: 10px 14px; }
 }
 .dialog h3{
   margin:0 0 12px 0;
