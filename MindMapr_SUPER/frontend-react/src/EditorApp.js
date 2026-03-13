@@ -515,7 +515,19 @@ export default function EditorApp() {
 
   const deleteSelected = useCallback(() => {
     if (!canEdit) return;
-    const selectedIds = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
+    // Prefer selection from the React Flow instance (more reliable), fall back to local state
+    let currentNodes = nodes;
+    try {
+      const inst = rfRef.current;
+      if (inst && typeof inst.getNodes === 'function') {
+        const instNodes = inst.getNodes();
+        if (Array.isArray(instNodes) && instNodes.length) currentNodes = instNodes;
+      }
+    } catch {
+      // ignore and use state
+    }
+
+    const selectedIds = new Set(currentNodes.filter((n) => n.selected).map((n) => n.id));
     if (!selectedIds.size) return alert("Маркирай възел(и) и опитай пак.");
     if (selectedIds.has("root")) return alert("Главната тема не може да се изтрие.");
     const nextNodes = nodes.filter((n) => !selectedIds.has(n.id));
