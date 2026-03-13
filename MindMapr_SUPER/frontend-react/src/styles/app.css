@@ -435,6 +435,7 @@ kbd{
   display: inline-block;
   font-size: 13px;
   box-shadow: 0 6px 18px rgba(5,8,20,0.36);
+  transition: box-shadow .14s ease, transform .12s ease, border-color .12s ease;
 }
 .customNodeLabel{ white-space:nowrap; }
 .shape-rect { border-radius: 6px; }
@@ -442,6 +443,12 @@ kbd{
 .shape-pill { border-radius: 999px; padding: 8px 18px; }
 .shape-circle { border-radius: 50%; padding: 14px; min-width: 56px; text-align: center; }
 .shape-diamond { transform: rotate(45deg); padding: 10px 14px; }
+
+.customNode.selected {
+  border-color: rgba(124,92,255,0.95);
+  box-shadow: 0 16px 48px rgba(124,92,255,0.20), 0 4px 14px rgba(0,0,0,0.25);
+  transform: translateY(-4px);
+}
 }
 .dialog h3{
   margin:0 0 12px 0;
