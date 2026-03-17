@@ -225,6 +225,27 @@ kbd{
   border:1.5px solid rgba(255,221,87,.32);
   color: #fffbe6;
 }
+
+/* Stretchable button that fills remaining space in a flex row */
+.btn.stretch{
+  width: auto;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Compact icon-style button used for shape selectors */
+.btn.icon{
+  width: auto;
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 12px;
+  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shapeMenu{ display:flex; gap:6px; align-items:center; }
 .small{
   font-size:12px;
   color:var(--muted);
