@@ -518,21 +518,11 @@ export default function EditorApp() {
     if (!canEdit) return;
     const label = prompt("Нов текст на избрания възел:");
     if (!label) return;
-    // Prefer selection from the React Flow instance (more reliable), fall back to local state
-    let currentNodes = nodes;
-    try {
-      const inst = rfRef.current;
-      if (inst && typeof inst.getNodes === 'function') {
-        const instNodes = inst.getNodes();
-        if (Array.isArray(instNodes) && instNodes.length) currentNodes = instNodes;
-      }
-    } catch {
-      // ignore and use state
-    }
-
-    const selected = currentNodes.find((n) => n.selected);
+    const selected = nodes.find((n) => n.selected);
     if (!selected) return alert("Маркирай възел (клик) и опитай пак.");
-    const nextNodes = nodes.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, label } } : n));
+    const nextNodes = nodes.map((n) =>
+      n.id === selected.id ? { ...n, data: { ...n.data, label } } : n
+    );
     setNodes(nextNodes);
     scheduleBroadcast(nextNodes, edges);
   }, [canEdit, nodes, edges, scheduleBroadcast]);
@@ -1032,22 +1022,20 @@ export default function EditorApp() {
 
           <div className="section">
             <h3>Инструменти</h3>
-              <div className="col">
+            <div className="col">
               <div className="row">
-                <button className="btn primary" onClick={addIdea} style={{flex: '0 0 auto'}}>
+                <button className="btn primary" onClick={addIdea}>
                   ➕ Нова идея <span className="small">(Ctrl+K)</span>
                 </button>
-                <div style={{display:'flex', gap:8, alignItems:'center', marginLeft:6, flex:1, minWidth:0}}>
-                  <button className="btn ghost stretch" onClick={renameSelected} style={{whiteSpace:'normal', textAlign:'center'}}>
-                    ✏️ Преименувай <span className="small">(F2)</span>
-                  </button>
-                  <div className="shapeMenu" style={{display:'flex', gap:6, alignItems:'center'}}>
-                    <span className="small" style={{opacity:.9}}>Форма:</span>
-                    <button className="btn ghost icon" onClick={() => setShapeForSelected('rect')} style={{fontSize:12}}>□</button>
-                    <button className="btn ghost icon" onClick={() => setShapeForSelected('rounded')} style={{fontSize:12}}>◧</button>
-                    <button className="btn ghost icon" onClick={() => setShapeForSelected('pill')} style={{fontSize:12}}>—</button>
-                    <button className="btn ghost icon" onClick={() => setShapeForSelected('circle')} style={{fontSize:12}}>◯</button>
-                  </div>
+                <button className="btn ghost" onClick={renameSelected}>
+                  ✏️ Преименувай <span className="small">(F2)</span>
+                </button>
+                <div style={{display:'flex',gap:6,alignItems:'center',marginLeft:6}}>
+                  <span className="small" style={{opacity:.9}}>Форма:</span>
+                  <button className="btn ghost" onClick={() => setShapeForSelected('rect')} style={{fontSize:12}}>□</button>
+                  <button className="btn ghost" onClick={() => setShapeForSelected('rounded')} style={{fontSize:12}}>◧</button>
+                  <button className="btn ghost" onClick={() => setShapeForSelected('pill')} style={{fontSize:12}}>—</button>
+                  <button className="btn ghost" onClick={() => setShapeForSelected('circle')} style={{fontSize:12}}>◯</button>
                 </div>
               </div>
               <div className="row">
