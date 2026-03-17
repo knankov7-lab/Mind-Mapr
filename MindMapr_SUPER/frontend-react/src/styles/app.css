@@ -246,6 +246,23 @@ kbd{
 }
 
 .shapeMenu{ display:flex; gap:6px; align-items:center; }
+.contextMenu{
+  position:fixed;
+  z-index:1200;
+  background: linear-gradient(180deg, rgba(18,26,46,.98), rgba(18,26,46,.96));
+  border:1px solid rgba(255,255,255,.06);
+  box-shadow: 0 18px 48px rgba(7,10,30,.6);
+  padding:10px;
+  border-radius:10px;
+  min-width:160px;
+}
+.contextMenu .contextItem{
+  padding:8px 10px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:700;
+}
+.contextMenu .contextItem:hover{ background: rgba(255,255,255,.02); }
 .small{
   font-size:12px;
   color:var(--muted);

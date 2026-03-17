@@ -133,6 +133,7 @@ export default function EditorApp() {
   const pendingTimerRef = useRef(null);
   const importFileRef = useRef(null);
   const importImageRef = useRef(null);
+  const [nodeContextMenu, setNodeContextMenu] = useState(null);
 
   const [meta, setMeta] = useState({ name: "", description: "", tags: "" });
   const [metaBusy, setMetaBusy] = useState(false);
@@ -303,6 +304,45 @@ export default function EditorApp() {
     },
     [room, myClientId]
   );
+
+  const onNodeContextMenu = useCallback((ev, node) => {
+    try { ev.preventDefault(); } catch {}
+    setNodeContextMenu({ x: ev.clientX, y: ev.clientY, nodeId: node.id });
+  }, []);
+
+  const renameNode = useCallback((nodeId) => {
+    if (!canEdit) return;
+    const label = prompt("Нов текст на възела:");
+    if (!label) return setNodeContextMenu(null);
+    const next = nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, label } } : n));
+    setNodes(next);
+    scheduleBroadcast(next, edges);
+    setNodeContextMenu(null);
+  }, [canEdit, nodes, edges, scheduleBroadcast]);
+
+  const setShapeForNode = useCallback((nodeId, shape) => {
+    if (!canEdit) return;
+    const next = nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...(n.data || {}), shape } } : n));
+    setNodes(next);
+    scheduleBroadcast(next, edges);
+    setNodeContextMenu(null);
+  }, [canEdit, nodes, edges, scheduleBroadcast]);
+
+  useEffect(() => {
+    if (!nodeContextMenu) return;
+    const onWindowDown = (e) => {
+      const el = e.target;
+      if (!el) return setNodeContextMenu(null);
+      if (!el.closest || !el.closest('.contextMenu')) setNodeContextMenu(null);
+    };
+    const onEsc = (e) => { if (e.key === 'Escape') setNodeContextMenu(null); };
+    window.addEventListener('mousedown', onWindowDown);
+    window.addEventListener('keydown', onEsc);
+    return () => {
+      window.removeEventListener('mousedown', onWindowDown);
+      window.removeEventListener('keydown', onEsc);
+    };
+  }, [nodeContextMenu]);
 
   const loadComments = useCallback(async () => {
     if (!room) return;
@@ -1200,6 +1240,7 @@ export default function EditorApp() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onInit={(inst) => { rfRef.current = inst; }}
+            onNodeContextMenu={onNodeContextMenu}
             onMouseMove={onCanvasMouseMove}
             nodesDraggable={canEdit}
             nodesConnectable={canEdit}
@@ -1214,6 +1255,23 @@ export default function EditorApp() {
             <Controls />
             <CursorsOverlay cursors={cursors} myClientId={myClientId} />
           </ReactFlow>
+
+          {nodeContextMenu ? (
+            <div
+              className="contextMenu"
+              style={{ left: nodeContextMenu.x + 6, top: nodeContextMenu.y + 6 }}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <div className="contextItem" onClick={() => renameNode(nodeContextMenu.nodeId)}>✏️ Преименувай</div>
+              <div style={{display:'flex',gap:6,alignItems:'center',marginTop:8}}>
+                <div className="small" style={{opacity:.9, marginRight:6}}>Форма:</div>
+                <button className="btn ghost icon" onClick={() => setShapeForNode(nodeContextMenu.nodeId, 'rect')}>□</button>
+                <button className="btn ghost icon" onClick={() => setShapeForNode(nodeContextMenu.nodeId, 'rounded')}>◧</button>
+                <button className="btn ghost icon" onClick={() => setShapeForNode(nodeContextMenu.nodeId, 'pill')}>—</button>
+                <button className="btn ghost icon" onClick={() => setShapeForNode(nodeContextMenu.nodeId, 'circle')}>◯</button>
+              </div>
+            </div>
+          ) : null}
 
           {toast ? <div className="toast">{toast}</div> : null}
         </div>
