@@ -454,6 +454,13 @@ export default function EditorApp() {
         className={`customNode shape-${displayShape} ${isPreview ? "preview" : ""} ${selected ? "selected" : ""}`}
         style={style}
       >
+        {displayColor ? (
+          <div
+            className="colorSwatch"
+            style={{ background: displayColor }}
+            title={`color: ${displayColor}`}
+          />
+        ) : null}
         <div className="nodeLabel">{data?.label}</div>
       </div>
     );
@@ -520,8 +527,12 @@ export default function EditorApp() {
 
   const setColorForNode = (color) => {
     if (!nodeContextMenu?.nodeId) return closeNodeMenu();
+    try {
+      // eslint-disable-next-line no-console
+      console.debug('[setColorForNode] nodeId=', nodeContextMenu.nodeId, 'color=', color);
+    } catch {}
     setNodes((prev) => {
-      const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...n.data, color } } : n));
+      const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...(n.data || {}), color } } : n));
       scheduleBroadcast(next, edges);
       return next;
     });
