@@ -192,6 +192,38 @@ export default function EditorApp() {
     loadMeta();
   }, [loadMeta]);
 
+  // Quietly ignore AbortError from interrupted media play() promises
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const proto = window.HTMLMediaElement && window.HTMLMediaElement.prototype;
+      if (!proto) return;
+      const origPlay = proto.play;
+      proto.play = function () {
+        const p = origPlay.apply(this, arguments);
+        if (p && typeof p.catch === 'function') {
+          p.catch((err) => {
+            // ignore AbortError caused by calling pause() immediately after play()
+            if (err && (err.name === 'AbortError' || /play\(\) request was interrupted/i.test(String(err.message || '')))) {
+              return;
+            }
+            // preserve other errors
+            // eslint-disable-next-line no-console
+            console.error('Media play() error:', err);
+          });
+        }
+        return p;
+      };
+      return () => {
+        try {
+          proto.play = origPlay;
+        } catch {}
+      };
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
   // WebSocket connect & room join
   useEffect(() => {
     const ws = new WebSocket(WS);
