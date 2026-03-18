@@ -621,6 +621,11 @@ kbd{
 .customNode.shape-diamond{ transform: rotate(45deg); width:64px; height:64px; display:flex; align-items:center; justify-content:center; }
 .customNode.shape-diamond .nodeLabel{ transform: rotate(-45deg); }
 
+.customNode.preview{ box-shadow: 0 0 0 4px rgba(124,92,255,.18), 0 8px 28px rgba(0,0,0,.45); transition: box-shadow .12s, transform .08s; }
+.customNode.preview.shape-diamond{ transform: rotate(45deg) scale(1.03); }
+.customNode.preview.shape-circle{ transform: scale(1.04); }
+.customNode.preview.shape-pill{ transform: scale(1.03); }
+
 /* Inline rename input inside context menu */
 .contextRenameInput{
   width:100%;

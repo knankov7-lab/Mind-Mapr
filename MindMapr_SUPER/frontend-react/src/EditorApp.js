@@ -385,11 +385,13 @@ export default function EditorApp() {
   const canvasRef = useRef(null);
   const [nodeContextMenu, setNodeContextMenu] = useState(null);
   const renameInputRef = useRef(null);
+  const [previewShape, setPreviewShape] = useState(null);
 
-  const IdeaNode = ({ data, selected }) => {
-    const shape = (data && data.shape) || "rect";
+  const IdeaNode = ({ id, data, selected }) => {
+    const isPreview = previewShape && previewShape.nodeId === id;
+    const displayShape = (isPreview ? previewShape.shape : (data && data.shape)) || "rect";
     return (
-      <div className={`customNode shape-${shape} ${selected ? "selected" : ""}`}>
+      <div className={`customNode shape-${displayShape} ${isPreview ? "preview" : ""} ${selected ? "selected" : ""}`}>
         <div className="nodeLabel">{data?.label}</div>
       </div>
     );
@@ -409,7 +411,10 @@ export default function EditorApp() {
     setNodeContextMenu({ x, y, nodeId: node.id, renameValue: label, editing: false });
   };
 
-  const closeNodeMenu = () => setNodeContextMenu(null);
+  const closeNodeMenu = () => {
+    setNodeContextMenu(null);
+    setPreviewShape(null);
+  };
 
   const renameNode = () => {
     if (!nodeContextMenu?.nodeId) return closeNodeMenu();
@@ -443,6 +448,7 @@ export default function EditorApp() {
       scheduleBroadcast(next, edges);
       return next;
     });
+    setPreviewShape(null);
     closeNodeMenu();
   };
 
@@ -1369,10 +1375,30 @@ export default function EditorApp() {
                   <div className="contextItem">
                     Форма
                     <div className="shapeList">
-                      <button className="shapeBtn" onClick={() => setShapeForNode('rect')}>▭</button>
-                      <button className="shapeBtn" onClick={() => setShapeForNode('pill')}>▯</button>
-                      <button className="shapeBtn" onClick={() => setShapeForNode('circle')}>◯</button>
-                      <button className="shapeBtn" onClick={() => setShapeForNode('diamond')}>◆</button>
+                      <button
+                        className="shapeBtn"
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, shape: 'rect' })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setShapeForNode('rect')}
+                      >▭</button>
+                      <button
+                        className="shapeBtn"
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, shape: 'pill' })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setShapeForNode('pill')}
+                      >▯</button>
+                      <button
+                        className="shapeBtn"
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, shape: 'circle' })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setShapeForNode('circle')}
+                      >◯</button>
+                      <button
+                        className="shapeBtn"
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, shape: 'diamond' })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setShapeForNode('diamond')}
+                      >◆</button>
                     </div>
                   </div>
                   <div className="contextItem" onClick={closeNodeMenu}>✖️ Затвори</div>
