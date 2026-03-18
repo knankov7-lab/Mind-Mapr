@@ -444,18 +444,11 @@ export default function EditorApp() {
     const displayColor = (isPreview && previewShape.color) ? previewShape.color : (data && data.color);
     const style = {};
     if (displayColor) {
-      const end = hexToRgba(displayColor, 0.85) || displayColor;
+      // keep styling minimal here; prefer node.style from node object when present
       style.backgroundColor = displayColor;
-      style.background = displayColor; // solid base color
-      style.backgroundImage = `linear-gradient(180deg, ${displayColor}, ${end})`;
-      style.boxShadow = `0 12px 40px ${hexToRgba(displayColor, 0.18) || 'rgba(0,0,0,.18)'}`;
-      style.border = '1px solid rgba(0,0,0,0.18)';
       style.color = '#fff';
-      try {
-        // small debug info — visible in browser console when selecting colors
-        // eslint-disable-next-line no-console
-        console.log('[IdeaNode] id=', id, 'color=', displayColor);
-      } catch {}
+      style.boxShadow = `0 10px 30px ${hexToRgba(displayColor, 0.16) || 'rgba(0,0,0,.16)'}`;
+      try { console.log('[IdeaNode] id=', id, 'color=', displayColor); } catch {}
     }
     return (
       <div
@@ -541,7 +534,26 @@ export default function EditorApp() {
       console.log('[setColorForNode] nodeId=', nodeContextMenu.nodeId, 'color=', color);
     } catch {}
     setNodes((prev) => {
-      const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...(n.data || {}), color } } : n));
+      const next = (prev || []).map((n) => {
+        if (n.id !== nodeContextMenu.nodeId) return n;
+        const existingStyle = n.style || {};
+        const newStyle = color
+          ? {
+              ...(existingStyle || {}),
+              backgroundColor: color,
+              color: '#fff',
+              boxShadow: hexToRgba(color, 0.16) ? `0 10px 30px ${hexToRgba(color, 0.16)}` : existingStyle.boxShadow,
+            }
+          : (() => {
+              const copy = { ...(existingStyle || {}) };
+              delete copy.backgroundColor;
+              delete copy.boxShadow;
+              delete copy.color;
+              return copy;
+            })();
+
+        return { ...n, data: { ...(n.data || {}), color }, style: newStyle };
+      });
       scheduleBroadcast(next, edges);
       return next;
     });
