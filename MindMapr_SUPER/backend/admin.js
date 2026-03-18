@@ -165,42 +165,6 @@ router.put('/settings', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Failed to save settings' }); }
 });
 
-// AI "training" examples (few-shot)
-router.get('/ai/examples', async (req, res) => {
-  try {
-    const intent = (req.query.intent || '').toString().trim();
-    if (!intent) return res.status(400).json({ error: 'intent required' });
-    const limit = req.query.limit;
-    const rows = await listAiExamples(intent, limit);
-    res.json({ intent, examples: rows });
-  } catch (_e) {
-    res.status(500).json({ error: 'Failed to list ai examples' });
-  }
-});
-
-router.post('/ai/examples', async (req, res) => {
-  try {
-    const { intent, input, output, tags } = req.body || {};
-    const safeIntent = (intent || '').toString().trim();
-    const safeOutput = (output || '').toString();
-    if (!safeIntent) return res.status(400).json({ error: 'intent required' });
-    if (!safeOutput.trim()) return res.status(400).json({ error: 'output required' });
-    await insertAiExample(safeIntent, input ?? null, safeOutput, tags ?? null);
-    res.json({ ok: true });
-  } catch (_e) {
-    res.status(500).json({ error: 'Failed to create ai example' });
-  }
-});
-
-router.delete('/ai/examples/:id', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'invalid id' });
-    const r = await deleteAiExampleById(id);
-    res.json({ ok: true, deleted: r.changes || 0 });
-  } catch (_e) {
-    res.status(500).json({ error: 'Failed to delete ai example' });
-  }
-});
+// AI admin endpoints removed
 
 module.exports = router;

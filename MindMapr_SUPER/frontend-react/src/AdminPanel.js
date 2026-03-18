@@ -11,39 +11,10 @@ export default function AdminPanel({ onClose }) {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('users');
 
-  const aiIntents = useMemo(() => (
-    [
-      { id: 'suggest-nodes', label: 'Предложения за възли (suggest-nodes)' },
-      { id: 'generate-map', label: 'Генериране на карта (generate-map)' },
-    ]
-  ), []);
-  const [aiIntent, setAiIntent] = useState('suggest-nodes');
-  const [aiExamples, setAiExamples] = useState([]);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiError, setAiError] = useState('');
-  const [aiForm, setAiForm] = useState({ input: '', output: '', tags: '' });
-
-  const fetchAiExamples = useCallback(async () => {
-    setAiError('');
-    setAiBusy(true);
-    try {
-      const res = await api.get(`/admin/ai/examples?intent=${encodeURIComponent(aiIntent)}&limit=50`);
-      setAiExamples(res.data?.examples || []);
-    } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || 'Failed to load AI examples';
-      setAiError(String(msg));
-      setAiExamples([]);
-    } finally {
-      setAiBusy(false);
-    }
-  }, [aiIntent]);
 
   useEffect(() => { fetchAll(); }, []);
 
-  useEffect(() => {
-    if (tab !== 'ai') return;
-    fetchAiExamples();
-  }, [tab, fetchAiExamples]);
+  // AI training UI removed
 
   async function fetchAll() {
     try {
@@ -96,46 +67,7 @@ export default function AdminPanel({ onClose }) {
     } finally { setSaving(false); }
   }
 
-  async function createAiExample() {
-    setAiError('');
-    const output = (aiForm.output || '').toString();
-    if (!output.trim()) {
-      setAiError('Полето Output е задължително.');
-      return;
-    }
-
-    setAiBusy(true);
-    try {
-      await api.post('/admin/ai/examples', {
-        intent: aiIntent,
-        input: aiForm.input || null,
-        output: output,
-        tags: aiForm.tags || null,
-      });
-      setAiForm({ input: '', output: '', tags: '' });
-      await fetchAiExamples();
-    } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || 'Failed to create AI example';
-      setAiError(String(msg));
-    } finally {
-      setAiBusy(false);
-    }
-  }
-
-  async function deleteAiExample(id) {
-    if (!window.confirm('Изтрий този AI пример?')) return;
-    setAiError('');
-    setAiBusy(true);
-    try {
-      await api.delete(`/admin/ai/examples/${encodeURIComponent(id)}`);
-      await fetchAiExamples();
-    } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || 'Failed to delete AI example';
-      setAiError(String(msg));
-    } finally {
-      setAiBusy(false);
-    }
-  }
+  // AI example management removed
 
   return (
     <div style={{position:'absolute',right:18,top:62,bottom:14,left:380,background:'rgba(18,26,46,.92)',padding:24,borderRadius:'18px',boxShadow:'0 18px 55px rgba(0,0,0,.35)',overflow:'auto',minWidth:520}}>
@@ -150,7 +82,7 @@ export default function AdminPanel({ onClose }) {
         <button className={tab==='stats'?'btn primary':'btn ghost'} onClick={()=>setTab('stats')}>Статистика</button>
         <button className={tab==='logs'?'btn primary':'btn ghost'} onClick={()=>setTab('logs')}>Логове</button>
         <button className={tab==='settings'?'btn primary':'btn ghost'} onClick={()=>setTab('settings')}>Настройки</button>
-        <button className={tab==='ai'?'btn primary':'btn ghost'} onClick={()=>setTab('ai')}>AI Обучение</button>
+        {/* AI training tab removed */}
       </div>
 
       {tab==='users' && (
@@ -275,103 +207,7 @@ export default function AdminPanel({ onClose }) {
         </section>
       )}
 
-      {tab==='ai' && (
-        <section>
-          <h4 style={{margin:'8px 0'}}>AI Обучение (примери)</h4>
-          <div style={{background:'rgba(255,255,255,.04)',borderRadius:'12px',padding:'12px',fontSize:13,border:'1px solid rgba(255,255,255,.10)'}}>
-            <div style={{display:'flex',gap:10,alignItems:'end',flexWrap:'wrap'}}>
-              <label style={{display:'flex',flexDirection:'column',gap:6,minWidth:320}}>
-                <span style={{opacity:.9}}>Intent</span>
-                <select className="select" value={aiIntent} onChange={(e) => setAiIntent(e.target.value)}>
-                  {aiIntents.map((x) => (
-                    <option key={x.id} value={x.id}>{x.label}</option>
-                  ))}
-                </select>
-              </label>
-              <button className="btn ghost" onClick={fetchAiExamples} disabled={aiBusy}>↻ Обнови</button>
-            </div>
-
-            <div style={{marginTop:10,opacity:.85,fontSize:12}}>
-              Това е „обучение“ чрез curated примери (few-shot). Колкото по-добри примери добавиш, толкова по-добър става стилът на AI.
-            </div>
-
-            {aiError ? (
-              <div style={{marginTop:10,padding:'10px 12px',borderRadius:12,border:'1px solid rgba(255,110,110,.28)',background:'rgba(255,110,110,.12)',color:'rgba(255,220,220,.95)'}}>
-                {aiError}
-              </div>
-            ) : null}
-
-            <div style={{marginTop:14,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-              <label style={{display:'flex',flexDirection:'column',gap:6}}>
-                <span style={{opacity:.9}}>Input (по избор)</span>
-                <textarea
-                  value={aiForm.input}
-                  onChange={(e) => setAiForm((p) => ({ ...p, input: e.target.value }))}
-                  placeholder="Примерен вход: списък от възли, тема, инструкции..."
-                  style={{width:'100%',height:120,borderRadius:'12px',border:'1px solid rgba(255,255,255,.12)',background:'rgba(255,255,255,.07)',color:'#e9eeff',padding:10}}
-                />
-              </label>
-              <label style={{display:'flex',flexDirection:'column',gap:6}}>
-                <span style={{opacity:.9}}>Output (задължително)</span>
-                <textarea
-                  value={aiForm.output}
-                  onChange={(e) => setAiForm((p) => ({ ...p, output: e.target.value }))}
-                  placeholder={aiIntent === 'suggest-nodes'
-                    ? 'Пример: ["Причини","Последици","Решения"]'
-                    : 'Пример: ["Определение","Примери","Заключение"]'
-                  }
-                  style={{width:'100%',height:120,borderRadius:'12px',border:'1px solid rgba(255,255,255,.12)',background:'rgba(255,255,255,.07)',color:'#e9eeff',padding:10}}
-                />
-              </label>
-            </div>
-            <div style={{marginTop:10,display:'flex',gap:10,alignItems:'end',flexWrap:'wrap'}}>
-              <label style={{display:'flex',flexDirection:'column',gap:6,minWidth:260}}>
-                <span style={{opacity:.9}}>Tags (по избор)</span>
-                <input
-                  value={aiForm.tags}
-                  onChange={(e) => setAiForm((p) => ({ ...p, tags: e.target.value }))}
-                  placeholder="например: училище, история"
-                  style={{width:'100%',borderRadius:'12px',border:'1px solid rgba(255,255,255,.12)',background:'rgba(255,255,255,.07)',color:'#e9eeff',padding:'10px 12px'}}
-                />
-              </label>
-              <button className="btn primary" onClick={createAiExample} disabled={aiBusy}>➕ Добави пример</button>
-            </div>
-
-            <div style={{marginTop:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginBottom:8}}>
-                <b>Примери ({aiExamples.length})</b>
-                {aiBusy ? <span style={{opacity:.8,fontSize:12}}>Зареждане...</span> : null}
-              </div>
-              <div style={{maxHeight:280,overflow:'auto',border:'1px solid rgba(255,255,255,.10)',borderRadius:'12px',background:'rgba(255,255,255,.04)'}}>
-                <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead style={{background:'rgba(124,92,255,.18)'}}>
-                    <tr>
-                      <th style={{textAlign:'left',padding:'10px 10px'}}>ID</th>
-                      <th style={{textAlign:'left',padding:'10px 10px'}}>Input</th>
-                      <th style={{textAlign:'left',padding:'10px 10px'}}>Output</th>
-                      <th style={{textAlign:'left',padding:'10px 10px'}}>Tags</th>
-                      <th style={{textAlign:'left',padding:'10px 10px'}}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(aiExamples || []).map((ex) => (
-                      <tr key={ex.id} style={{borderTop:'1px solid rgba(255,255,255,.06)'}}>
-                        <td style={{padding:'10px 10px',whiteSpace:'nowrap',opacity:.9}}>{ex.id}</td>
-                        <td style={{padding:'10px 10px',maxWidth:260,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',opacity:.9}} title={ex.input || ''}>{ex.input || '—'}</td>
-                        <td style={{padding:'10px 10px',maxWidth:320,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}} title={ex.output || ''}>{ex.output}</td>
-                        <td style={{padding:'10px 10px',maxWidth:160,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',opacity:.9}} title={ex.tags || ''}>{ex.tags || '—'}</td>
-                        <td style={{padding:'10px 10px'}}>
-                          <button className="btn warn" style={{fontSize:12}} onClick={() => deleteAiExample(ex.id)} disabled={aiBusy}>🗑 Изтрий</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* AI training panel removed */}
     </div>
   );
 }
