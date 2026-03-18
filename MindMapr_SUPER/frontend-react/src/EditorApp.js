@@ -436,10 +436,12 @@ export default function EditorApp() {
     const displayColor = (isPreview && previewShape.color) ? previewShape.color : (data && data.color);
     const style = {};
     if (displayColor) {
-      // prefer rgba fallback for better browser compatibility
-      const end = hexToRgba(displayColor, 0.55) || displayColor;
-      style.background = `linear-gradient(180deg, ${displayColor}, ${end})`;
-      style.border = '1px solid rgba(255, 255, 255, 0.12)';
+      const end = hexToRgba(displayColor, 0.85) || displayColor;
+      style.background = displayColor; // solid base color
+      style.backgroundImage = `linear-gradient(180deg, ${displayColor}, ${end})`;
+      style.boxShadow = `0 12px 40px ${hexToRgba(displayColor, 0.18) || 'rgba(0,0,0,.18)'}`;
+      style.border = '1px solid rgba(0,0,0,0.18)';
+      style.color = '#fff';
     }
     return (
       <div
