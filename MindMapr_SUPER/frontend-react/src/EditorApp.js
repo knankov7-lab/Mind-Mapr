@@ -121,7 +121,15 @@ export default function EditorApp() {
 
   const [myClientId, setMyClientId] = useState(null);
   const [myRole, setMyRole] = useState('guest');
-  const [canEdit, setCanEdit] = useState(false);
+  const initialCanEdit = (() => {
+    try {
+      const u = new URL(window.location.href);
+      return u.searchParams.get('edit') === '1';
+    } catch (e) {
+      return false;
+    }
+  })();
+  const [canEdit, setCanEdit] = useState(initialCanEdit);
   const [cursors, setCursors] = useState({});
   const rfRef = useRef(null);
   const lastCursorSentAtRef = useRef(0);
@@ -473,6 +481,7 @@ export default function EditorApp() {
     try {
       ev.preventDefault();
     } catch {}
+    try { console.log('[openNodeMenuAtEvent] nodeId=', node?.id, 'canEdit=', canEdit); } catch {}
     const rect = canvasRef.current?.getBoundingClientRect();
     const x = rect ? ev.clientX - rect.left : ev.clientX;
     const y = rect ? ev.clientY - rect.top : ev.clientY;
