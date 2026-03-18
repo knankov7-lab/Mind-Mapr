@@ -450,10 +450,34 @@ export default function EditorApp() {
       style.boxShadow = `0 10px 30px ${hexToRgba(displayColor, 0.16) || 'rgba(0,0,0,.16)'}`;
       try { console.log('[IdeaNode] id=', id, 'color=', displayColor); } catch {}
     }
+
+    // add inline adjustments per shape so changes are visible even if CSS rules are overridden
+    const shapeInline = {};
+    if (displayShape === 'circle') {
+      shapeInline.width = '56px';
+      shapeInline.height = '56px';
+      shapeInline.padding = '0';
+      shapeInline.display = 'flex';
+      shapeInline.alignItems = 'center';
+      shapeInline.justifyContent = 'center';
+      shapeInline.borderRadius = '999px';
+    } else if (displayShape === 'pill') {
+      shapeInline.borderRadius = '999px';
+      shapeInline.paddingLeft = '20px';
+      shapeInline.paddingRight = '20px';
+    } else if (displayShape === 'diamond') {
+      shapeInline.width = '64px';
+      shapeInline.height = '64px';
+      shapeInline.display = 'flex';
+      shapeInline.alignItems = 'center';
+      shapeInline.justifyContent = 'center';
+    }
+
+    const finalStyle = { ...style, ...shapeInline };
     return (
       <div
         className={`customNode shape-${displayShape} ${isPreview ? "preview" : ""} ${selected ? "selected" : ""}`}
-        style={style}
+        style={finalStyle}
       >
         {displayColor ? (
           <div
@@ -518,12 +542,37 @@ export default function EditorApp() {
 
   const setShapeForNode = (shape) => {
     if (!nodeContextMenu?.nodeId) return closeNodeMenu();
+    try { console.log('[setShapeForNode] nodeId=', nodeContextMenu.nodeId, 'shape=', shape); } catch {}
     setNodes((prev) => {
-      const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...n.data, shape } } : n));
+      const next = (prev || []).map((n) => {
+        if (n.id !== nodeContextMenu.nodeId) return n;
+        const existingStyle = n.style || {};
+        let styleForShape = { ...(existingStyle || {}) };
+        if (shape === 'circle') {
+          styleForShape = { ...styleForShape, width: '56px', height: '56px', padding: '0', borderRadius: '999px' };
+        } else if (shape === 'pill') {
+          styleForShape = { ...styleForShape, borderRadius: '999px', paddingLeft: '20px', paddingRight: '20px' };
+        } else if (shape === 'diamond') {
+          styleForShape = { ...styleForShape, width: '64px', height: '64px' };
+        } else {
+          // rect: remove shape-specific overrides
+          const copy = { ...(styleForShape || {}) };
+          delete copy.width;
+          delete copy.height;
+          delete copy.padding;
+          delete copy.borderRadius;
+          delete copy.paddingLeft;
+          delete copy.paddingRight;
+          styleForShape = copy;
+        }
+
+        return { ...n, data: { ...(n.data || {}), shape }, style: styleForShape };
+      });
       scheduleBroadcast(next, edges);
       return next;
     });
     setPreviewShape(null);
+    try { showToast(`Форма: ${shape}`); } catch {}
     closeNodeMenu();
   };
 
