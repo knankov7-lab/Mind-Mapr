@@ -446,7 +446,7 @@ export default function EditorApp() {
       try {
         // small debug info — visible in browser console when selecting colors
         // eslint-disable-next-line no-console
-        console.debug('[IdeaNode] id=', id, 'color=', displayColor);
+        console.log('[IdeaNode] id=', id, 'color=', displayColor);
       } catch {}
     }
     return (
@@ -529,7 +529,7 @@ export default function EditorApp() {
     if (!nodeContextMenu?.nodeId) return closeNodeMenu();
     try {
       // eslint-disable-next-line no-console
-      console.debug('[setColorForNode] nodeId=', nodeContextMenu.nodeId, 'color=', color);
+      console.log('[setColorForNode] nodeId=', nodeContextMenu.nodeId, 'color=', color);
     } catch {}
     setNodes((prev) => {
       const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...(n.data || {}), color } } : n));
@@ -537,6 +537,7 @@ export default function EditorApp() {
       return next;
     });
     setPreviewShape(null);
+    try { showToast(`Цвят: ${color ? color : 'изчистен'}`); } catch {}
     closeNodeMenu();
   };
 
