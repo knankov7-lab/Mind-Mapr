@@ -437,11 +437,17 @@ export default function EditorApp() {
     const style = {};
     if (displayColor) {
       const end = hexToRgba(displayColor, 0.85) || displayColor;
+      style.backgroundColor = displayColor;
       style.background = displayColor; // solid base color
       style.backgroundImage = `linear-gradient(180deg, ${displayColor}, ${end})`;
       style.boxShadow = `0 12px 40px ${hexToRgba(displayColor, 0.18) || 'rgba(0,0,0,.18)'}`;
       style.border = '1px solid rgba(0,0,0,0.18)';
       style.color = '#fff';
+      try {
+        // small debug info — visible in browser console when selecting colors
+        // eslint-disable-next-line no-console
+        console.debug('[IdeaNode] id=', id, 'color=', displayColor);
+      } catch {}
     }
     return (
       <div
