@@ -100,7 +100,7 @@ export default function EditorApp() {
   }, []);
 
   const [nodes, setNodes] = useState(() => [
-    { id: "root", position: { x: 0, y: 0 }, data: { label: "Главна тема" }, type: "default" }
+    { id: "root", position: { x: 0, y: 0 }, data: { label: "Главна тема", shape: "rect" }, type: "idea" }
   ]);
   const [edges, setEdges] = useState([]);
 
@@ -210,7 +210,7 @@ export default function EditorApp() {
         const msg = JSON.parse(ev.data);
         if (msg.type === "state" && msg.room === room) {
           suppressRemoteRef.current = true;
-          setNodes(msg.nodes || []);
+          setNodes(normalizeNodes(msg.nodes || []));
           setEdges(msg.edges || []);
           setLastSync(new Date().toLocaleTimeString());
           window.setTimeout(() => (suppressRemoteRef.current = false), 0);
@@ -360,14 +360,90 @@ export default function EditorApp() {
       const res = await mapsAPI.load(roomId);
       const data = res.data;
       if (!data?.nodes) return showToast("Невалиден запис.");
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges || []);
-      scheduleBroadcast(data.nodes, data.edges || []);
+      scheduleBroadcast(normalizeNodes(data.nodes), data.edges || []);
       showToast("Картата е заредена.");
     } catch {
       showToast("Грешка при зареждане на картата.");
     }
   };
+
+  // normalize nodes to use local 'idea' node type and default shape
+  const normalizeNodes = (list) => {
+    if (!Array.isArray(list)) return [];
+    return list.map((n) => ({
+      ...n,
+      type: n.type || "idea",
+      data: {
+        ...(n.data || {}),
+        shape: (n.data && n.data.shape) || "rect",
+      },
+    }));
+  };
+
+  const canvasRef = useRef(null);
+  const [nodeContextMenu, setNodeContextMenu] = useState(null);
+
+  const IdeaNode = ({ data, selected }) => {
+    const shape = (data && data.shape) || "rect";
+    return (
+      <div className={`customNode shape-${shape} ${selected ? "selected" : ""}`}>
+        <div className="nodeLabel">{data?.label}</div>
+      </div>
+    );
+  };
+
+  const nodeTypes = useMemo(() => ({ idea: IdeaNode }), []);
+
+  const openNodeMenuAtEvent = (ev, node) => {
+    if (!canEdit) return;
+    try {
+      ev.preventDefault();
+    } catch {}
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const x = rect ? ev.clientX - rect.left : ev.clientX;
+    const y = rect ? ev.clientY - rect.top : ev.clientY;
+    setNodeContextMenu({ x, y, nodeId: node.id });
+  };
+
+  const closeNodeMenu = () => setNodeContextMenu(null);
+
+  const renameNode = () => {
+    if (!nodeContextMenu?.nodeId) return closeNodeMenu();
+    const label = prompt("Нов текст на възела:");
+    if (!label) return closeNodeMenu();
+    setNodes((prev) => {
+      const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...n.data, label } } : n));
+      scheduleBroadcast(next, edges);
+      return next;
+    });
+    closeNodeMenu();
+  };
+
+  const setShapeForNode = (shape) => {
+    if (!nodeContextMenu?.nodeId) return closeNodeMenu();
+    setNodes((prev) => {
+      const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...n.data, shape } } : n));
+      scheduleBroadcast(next, edges);
+      return next;
+    });
+    closeNodeMenu();
+  };
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (!nodeContextMenu) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const menuEl = document.querySelector('.contextMenu');
+      if (menuEl && (menuEl === e.target || menuEl.contains(e.target))) return;
+      // if click outside canvas or menu, close
+      if (!canvas.contains(e.target)) closeNodeMenu();
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [nodeContextMenu]);
 
   const onNodesChange = useCallback(
     (changes) => {
@@ -414,8 +490,8 @@ export default function EditorApp() {
     const newNode = {
       id,
       position: { x: baseX, y: baseY },
-      data: { label: "Нова идея" },
-      type: "default"
+      data: { label: "Нова идея", shape: "rect" },
+      type: "idea"
     };
 
     const newEdge = { id: `e-root-${id}`, source: "root", target: id, animated: true };
@@ -547,9 +623,9 @@ export default function EditorApp() {
       const res = await mapsAPI.load(room);
       const data = res.data;
       if (!data?.nodes) return showToast("Невалиден запис.");
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges || []);
-      scheduleBroadcast(data.nodes, data.edges || []);
+      scheduleBroadcast(normalizeNodes(data.nodes), data.edges || []);
       showToast("Заредено.");
     } catch (_err) {
       showToast("Няма запазена карта за тази стая.");
@@ -561,9 +637,9 @@ export default function EditorApp() {
       const res = await mapsAPI.loadSave(saveId);
       const data = res.data;
       if (!data?.nodes) return showToast("Невалиден запис.");
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges || []);
-      scheduleBroadcast(data.nodes, data.edges || []);
+      scheduleBroadcast(normalizeNodes(data.nodes), data.edges || []);
       setShowHistory(false);
       showToast("Версията е възстановена.");
     } catch (err) {
@@ -736,7 +812,7 @@ export default function EditorApp() {
       if (!Array.isArray(data?.nodes)) return showToast("Невалиден импорт (nodes). ");
       if (!Array.isArray(data?.edges)) return showToast("Невалиден импорт (edges). ");
 
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges);
       if (data?.meta && typeof data.meta === "object") {
         setMeta((m) => ({
@@ -789,7 +865,7 @@ export default function EditorApp() {
       const data = JSON.parse(text);
       if (!Array.isArray(data?.nodes)) return showToast("Невалиден файл (nodes).");
       if (!Array.isArray(data?.edges)) return showToast("Невалиден файл (edges).");
-      setNodes(data.nodes);
+      setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges);
       scheduleBroadcast(data.nodes, data.edges);
       showToast("Импортът е успешен.");
@@ -861,7 +937,7 @@ export default function EditorApp() {
     setAiLoading(true);
     try {
       const res = await aiAPI.generateMap(aiTopic);
-      setNodes(res.data.nodes);
+      setNodes(normalizeNodes(res.data.nodes));
       setEdges(res.data.edges);
       showToast("Генерирана мисловна карта по тема: " + aiTopic);
     } catch (error) {
@@ -1027,13 +1103,13 @@ export default function EditorApp() {
                       {
                         id: "root",
                         position: { x: 0, y: 0 },
-                        data: { label: "Главна тема" },
-                        type: "default"
+                        data: { label: "Главна тема", shape: "rect" },
+                        type: "idea"
                       }
                     ];
-                    setNodes(starter);
+                    setNodes(normalizeNodes(starter));
                     setEdges([]);
-                    scheduleBroadcast(starter, []);
+                    scheduleBroadcast(normalizeNodes(starter), []);
                   }}
                 >
                   ↩️ Нова карта
@@ -1212,7 +1288,7 @@ export default function EditorApp() {
           }}
         />
 
-        <div className="canvasWrap">
+        <div className="canvasWrap" ref={canvasRef}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1220,6 +1296,9 @@ export default function EditorApp() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onInit={(inst) => { rfRef.current = inst; }}
+            nodeTypes={nodeTypes}
+            onNodeContextMenu={openNodeMenuAtEvent}
+            onNodeClick={openNodeMenuAtEvent}
             onMouseMove={onCanvasMouseMove}
             nodesDraggable={canEdit}
             nodesConnectable={canEdit}
@@ -1233,6 +1312,25 @@ export default function EditorApp() {
             <Controls />
             <CursorsOverlay cursors={cursors} myClientId={myClientId} />
           </ReactFlow>
+
+          {nodeContextMenu ? (
+            <div
+              className="contextMenu"
+              style={{ position: 'absolute', left: nodeContextMenu.x, top: nodeContextMenu.y, zIndex: 1200 }}
+            >
+              <div className="contextItem" onClick={renameNode}>✏️ Преименувай</div>
+              <div className="contextItem">
+                Форма
+                <div className="shapeList">
+                  <button className="shapeBtn" onClick={() => setShapeForNode('rect')}>▭</button>
+                  <button className="shapeBtn" onClick={() => setShapeForNode('pill')}>▯</button>
+                  <button className="shapeBtn" onClick={() => setShapeForNode('circle')}>◯</button>
+                  <button className="shapeBtn" onClick={() => setShapeForNode('diamond')}>◆</button>
+                </div>
+              </div>
+              <div className="contextItem" onClick={closeNodeMenu}>✖️ Затвори</div>
+            </div>
+          ) : null}
 
           {toast ? <div className="toast">{toast}</div> : null}
         </div>
