@@ -414,6 +414,17 @@ export default function EditorApp() {
     }));
   };
 
+  const hexToRgba = (hex, alpha = 1) => {
+    if (!hex || typeof hex !== 'string') return null;
+    let h = hex.replace('#', '').trim();
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    if (h.length !== 6) return null;
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   const canvasRef = useRef(null);
   const [nodeContextMenu, setNodeContextMenu] = useState(null);
   const renameInputRef = useRef(null);
@@ -425,9 +436,10 @@ export default function EditorApp() {
     const displayColor = (isPreview && previewShape.color) ? previewShape.color : (data && data.color);
     const style = {};
     if (displayColor) {
-      // use a subtle gradient based on the chosen color
-      style.background = `linear-gradient(180deg, ${displayColor}, ${displayColor}88)`;
-      style.border = '1px solid rgba(255, 255, 255, 0.18)';
+      // prefer rgba fallback for better browser compatibility
+      const end = hexToRgba(displayColor, 0.55) || displayColor;
+      style.background = `linear-gradient(180deg, ${displayColor}, ${end})`;
+      style.border = '1px solid rgba(255, 255, 255, 0.12)';
     }
     return (
       <div
