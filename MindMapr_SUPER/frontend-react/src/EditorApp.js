@@ -450,7 +450,6 @@ export default function EditorApp() {
       style.boxShadow = `0 10px 30px ${hexToRgba(displayColor, 0.16) || 'rgba(0,0,0,.16)'}`;
       try { console.log('[IdeaNode] id=', id, 'color=', displayColor); } catch {}
     }
-    try { console.log('[IdeaNode] id=', id, 'displayShape=', displayShape); } catch {}
 
     // add inline adjustments per shape so changes are visible even if CSS rules are overridden
     const shapeInline = {};
@@ -569,10 +568,6 @@ export default function EditorApp() {
 
         return { ...n, data: { ...(n.data || {}), shape }, style: styleForShape };
       });
-      try { // debug: show updated node in console
-        // eslint-disable-next-line no-console
-        console.log('[setShapeForNode] nextNode=', next.find((x) => x.id === nodeContextMenu.nodeId));
-      } catch {}
       scheduleBroadcast(next, edges);
       return next;
     });
@@ -1518,28 +1513,32 @@ export default function EditorApp() {
                     Форма
                     <div className="shapeList">
                       <button
+                        type="button"
                         className="shapeBtn"
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, shape: 'rect' })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setShapeForNode('rect')}
+                        onClick={(e) => { try { console.log('[shapeBtn.click] rect', e.target); } catch {} ; setShapeForNode('rect'); }}
                       >▭</button>
                       <button
+                        type="button"
                         className="shapeBtn"
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, shape: 'pill' })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setShapeForNode('pill')}
+                        onClick={(e) => { try { console.log('[shapeBtn.click] pill', e.target); } catch {} ; setShapeForNode('pill'); }}
                       >▯</button>
                       <button
+                        type="button"
                         className="shapeBtn"
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, shape: 'circle' })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setShapeForNode('circle')}
+                        onClick={(e) => { try { console.log('[shapeBtn.click] circle', e.target); } catch {} ; setShapeForNode('circle'); }}
                       >◯</button>
                       <button
+                        type="button"
                         className="shapeBtn"
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, shape: 'diamond' })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setShapeForNode('diamond')}
+                        onClick={(e) => { try { console.log('[shapeBtn.click] diamond', e.target); } catch {} ; setShapeForNode('diamond'); }}
                       >◆</button>
                     </div>
                   </div>
@@ -1547,44 +1546,49 @@ export default function EditorApp() {
                     Цвят
                     <div className="shapeList colorPalette">
                       <button
+                        type="button"
                         className="colorBtn"
                         title="Лилаво"
                         style={{ background: '#7c5cff' }}
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#7c5cff' })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setColorForNode('#7c5cff')}
+                        onClick={(e) => { try { console.log('[colorBtn.click] #7c5cff', e.target); } catch {} ; setColorForNode('#7c5cff'); }}
                       />
                       <button
+                        type="button"
                         className="colorBtn"
                         title="Тюркоаз"
                         style={{ background: '#26d1a7' }}
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#26d1a7' })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setColorForNode('#26d1a7')}
+                        onClick={(e) => { try { console.log('[colorBtn.click] #26d1a7', e.target); } catch {} ; setColorForNode('#26d1a7'); }}
                       />
                       <button
+                        type="button"
                         className="colorBtn"
                         title="Червено"
                         style={{ background: '#ff6e6e' }}
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#ff6e6e' })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setColorForNode('#ff6e6e')}
+                        onClick={(e) => { try { console.log('[colorBtn.click] #ff6e6e', e.target); } catch {} ; setColorForNode('#ff6e6e'); }}
                       />
                       <button
+                        type="button"
                         className="colorBtn"
                         title="Жълто"
                         style={{ background: '#ffdd57' }}
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#ffdd57' })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setColorForNode('#ffdd57')}
+                        onClick={(e) => { try { console.log('[colorBtn.click] #ffdd57', e.target); } catch {} ; setColorForNode('#ffdd57'); }}
                       />
                       <button
+                        type="button"
                         className="colorBtn"
                         title="Изчисти"
                         style={{ background: 'transparent', border: '1px dashed rgba(255,255,255,.12)', color: 'var(--text)' }}
                         onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: null })}
                         onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setColorForNode(null)}
+                        onClick={(e) => { try { console.log('[colorBtn.click] clear', e.target); } catch {} ; setColorForNode(null); }}
                       >✖</button>
                     </div>
                   </div>
