@@ -48,21 +48,7 @@ function setRoomInUrl(room) {
 export default function EditorApp() {
   const [showMapList, setShowMapList] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const handleSelectMap = async (roomId) => {
-    setRoom(roomId);
-    setShowMapList(false);
-    try {
-      const res = await mapsAPI.load(roomId);
-      const data = res.data;
-      if (!data?.nodes) return showToast("Невалиден запис.");
-      setNodes(data.nodes);
-      setEdges(data.edges || []);
-      scheduleBroadcast(data.nodes, data.edges || []);
-      showToast("Картата е заредена.");
-    } catch {
-      showToast("Грешка при зареждане на картата.");
-    }
-  };
+  
 
   const { user, token, isAuthenticated, isAdmin, login, register, logout } = useAuth();
   const [room, setRoom] = useState(getRoomFromUrl());
@@ -366,6 +352,22 @@ export default function EditorApp() {
     },
     [canEdit, broadcastState]
   );
+
+  const handleSelectMap = async (roomId) => {
+    setRoom(roomId);
+    setShowMapList(false);
+    try {
+      const res = await mapsAPI.load(roomId);
+      const data = res.data;
+      if (!data?.nodes) return showToast("Невалиден запис.");
+      setNodes(data.nodes);
+      setEdges(data.edges || []);
+      scheduleBroadcast(data.nodes, data.edges || []);
+      showToast("Картата е заредена.");
+    } catch {
+      showToast("Грешка при зареждане на картата.");
+    }
+  };
 
   const onNodesChange = useCallback(
     (changes) => {
