@@ -57,6 +57,9 @@ export default function EditorApp() {
   const [lastSync, setLastSync] = useState(null);
   const [toast, setToast] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const renameModalInputRef = useRef(null);
   const [authForm, setAuthForm] = useState({ email: "", password: "", username: "" });
   const [authError, setAuthError] = useState("");
 
@@ -644,16 +647,49 @@ export default function EditorApp() {
 
   const renameSelected = useCallback(() => {
     if (!canEdit) return;
-    const label = prompt("Нов текст на избрания възел:");
-    if (!label) return;
     const selected = nodes.find((n) => n.selected);
-    if (!selected) return alert("Маркирай възел (клик) и опитай пак.");
+    if (!selected) {
+      showToast("Маркирай възел (клик) и опитай пак.");
+      return;
+    }
+    setRenameValue(selected.data?.label || "");
+    setShowRenameModal(true);
+  }, [canEdit, nodes, showToast]);
+
+  const commitRenameSelected = useCallback(() => {
+    const label = String((renameValue || "").trim());
+    if (!label) {
+      setShowRenameModal(false);
+      return;
+    }
+    const selected = nodes.find((n) => n.selected);
+    if (!selected) {
+      setShowRenameModal(false);
+      showToast("Маркирай възел (клик) и опитай пак.");
+      return;
+    }
     const nextNodes = nodes.map((n) =>
       n.id === selected.id ? { ...n, data: { ...n.data, label } } : n
     );
     setNodes(nextNodes);
     scheduleBroadcast(nextNodes, edges);
-  }, [canEdit, nodes, edges, scheduleBroadcast]);
+    setShowRenameModal(false);
+  }, [nodes, edges, renameValue, scheduleBroadcast, showToast]);
+
+  const cancelRenameSelected = useCallback(() => {
+    setShowRenameModal(false);
+  }, []);
+
+  useEffect(() => {
+    if (showRenameModal) {
+      setTimeout(() => {
+        if (renameModalInputRef.current) {
+          renameModalInputRef.current.focus();
+          renameModalInputRef.current.select();
+        }
+      }, 0);
+    }
+  }, [showRenameModal]);
 
   const deleteSelected = useCallback(() => {
     if (!canEdit) return;
@@ -1368,6 +1404,30 @@ export default function EditorApp() {
           {toast ? <div className="toast">{toast}</div> : null}
         </div>
       </div>
+      {showRenameModal ? (
+        <div className="page-overlay" style={{ zIndex: 1400 }} onMouseDown={() => setShowRenameModal(false)}>
+          <div className="page" onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(480px, 92vw)' }}>
+            <h3 style={{ marginBottom: 10 }}>Преименуване на възел</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input
+                ref={renameModalInputRef}
+                className="input"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRenameSelected();
+                  if (e.key === 'Escape') cancelRenameSelected();
+                }}
+                placeholder="Ново име на възела..."
+              />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn ghost" onClick={cancelRenameSelected}>Отмени</button>
+                <button className="btn primary" onClick={commitRenameSelected}>OK</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {showAdmin ? <AdminPanel onClose={() => setShowAdmin(false)} /> : null}
     </>
   );
