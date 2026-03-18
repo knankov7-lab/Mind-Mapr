@@ -421,9 +421,19 @@ export default function EditorApp() {
 
   const IdeaNode = ({ id, data, selected }) => {
     const isPreview = previewShape && previewShape.nodeId === id;
-    const displayShape = (isPreview ? previewShape.shape : (data && data.shape)) || "rect";
+    const displayShape = (isPreview && previewShape.shape) ? previewShape.shape : (data && data.shape) || "rect";
+    const displayColor = (isPreview && previewShape.color) ? previewShape.color : (data && data.color);
+    const style = {};
+    if (displayColor) {
+      // use a subtle gradient based on the chosen color
+      style.background = `linear-gradient(180deg, ${displayColor}, ${displayColor}88)`;
+      style.border = '1px solid rgba(255, 255, 255, 0.18)';
+    }
     return (
-      <div className={`customNode shape-${displayShape} ${isPreview ? "preview" : ""} ${selected ? "selected" : ""}`}>
+      <div
+        className={`customNode shape-${displayShape} ${isPreview ? "preview" : ""} ${selected ? "selected" : ""}`}
+        style={style}
+      >
         <div className="nodeLabel">{data?.label}</div>
       </div>
     );
@@ -440,6 +450,10 @@ export default function EditorApp() {
     const x = rect ? ev.clientX - rect.left : ev.clientX;
     const y = rect ? ev.clientY - rect.top : ev.clientY;
     const label = (node && node.data && node.data.label) || "";
+    // if node isn't selected yet, select it locally so actions apply to the intended node
+    if (!node.selected) {
+      setNodes((prev) => (prev || []).map((n) => ({ ...n, selected: n.id === node.id })));
+    }
     setNodeContextMenu({ x, y, nodeId: node.id, renameValue: label, editing: false });
   };
 
@@ -481,6 +495,33 @@ export default function EditorApp() {
       return next;
     });
     setPreviewShape(null);
+    closeNodeMenu();
+  };
+
+  const setColorForNode = (color) => {
+    if (!nodeContextMenu?.nodeId) return closeNodeMenu();
+    setNodes((prev) => {
+      const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...n.data, color } } : n));
+      scheduleBroadcast(next, edges);
+      return next;
+    });
+    setPreviewShape(null);
+    closeNodeMenu();
+  };
+
+  const deleteNodeFromMenu = () => {
+    if (!nodeContextMenu?.nodeId) return closeNodeMenu();
+    const id = nodeContextMenu.nodeId;
+    if (id === "root") {
+      showToast("Главната тема не може да се изтрие.");
+      closeNodeMenu();
+      return;
+    }
+    const nextNodes = (nodes || []).filter((n) => n.id !== id);
+    const nextEdges = (edges || []).filter((e) => e.source !== id && e.target !== id);
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+    scheduleBroadcast(nextNodes, nextEdges);
     closeNodeMenu();
   };
 
@@ -1395,6 +1436,52 @@ export default function EditorApp() {
                       >◆</button>
                     </div>
                   </div>
+                  <div className="contextItem">
+                    Цвят
+                    <div className="shapeList colorPalette">
+                      <button
+                        className="colorBtn"
+                        title="Лилаво"
+                        style={{ background: '#7c5cff' }}
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#7c5cff' })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setColorForNode('#7c5cff')}
+                      />
+                      <button
+                        className="colorBtn"
+                        title="Тюркоаз"
+                        style={{ background: '#26d1a7' }}
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#26d1a7' })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setColorForNode('#26d1a7')}
+                      />
+                      <button
+                        className="colorBtn"
+                        title="Червено"
+                        style={{ background: '#ff6e6e' }}
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#ff6e6e' })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setColorForNode('#ff6e6e')}
+                      />
+                      <button
+                        className="colorBtn"
+                        title="Жълто"
+                        style={{ background: '#ffdd57' }}
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#ffdd57' })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setColorForNode('#ffdd57')}
+                      />
+                      <button
+                        className="colorBtn"
+                        title="Изчисти"
+                        style={{ background: 'transparent', border: '1px dashed rgba(255,255,255,.12)', color: 'var(--text)' }}
+                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: null })}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setColorForNode(null)}
+                      >✖</button>
+                    </div>
+                  </div>
+                  <div className="contextItem" onClick={deleteNodeFromMenu}>🗑 Изтрий възел</div>
                   <div className="contextItem" onClick={closeNodeMenu}>✖️ Затвори</div>
                 </>
               )}

@@ -612,6 +612,11 @@ kbd{
 .shapeBtn{ background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); color:var(--text); padding:6px 8px; border-radius:8px; cursor:pointer; }
 .shapeBtn:hover{ background: rgba(124,92,255,.12); }
 
+/* Color palette used in node context menu */
+.colorPalette{ display:flex; gap:8px; margin-top:8px; align-items:center; }
+.colorPalette .colorBtn{ width:28px; height:28px; padding:0; border-radius:8px; border:1px solid rgba(255,255,255,.06); cursor:pointer; box-shadow: none; }
+.colorPalette .colorBtn:hover{ transform: scale(1.06); }
+
 /* Simple custom node visuals */
 .customNode{ padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.06); background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); box-shadow: 0 8px 28px rgba(0,0,0,.45); color:var(--text); min-width:80px; text-align:center; }
 .customNode .nodeLabel{ font-weight:800; font-size:14px; }
