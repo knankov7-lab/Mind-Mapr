@@ -450,6 +450,7 @@ export default function EditorApp() {
       style.boxShadow = `0 10px 30px ${hexToRgba(displayColor, 0.16) || 'rgba(0,0,0,.16)'}`;
       try { console.log('[IdeaNode] id=', id, 'color=', displayColor); } catch {}
     }
+    try { console.log('[IdeaNode] id=', id, 'displayShape=', displayShape); } catch {}
 
     // add inline adjustments per shape so changes are visible even if CSS rules are overridden
     const shapeInline = {};
@@ -568,6 +569,10 @@ export default function EditorApp() {
 
         return { ...n, data: { ...(n.data || {}), shape }, style: styleForShape };
       });
+      try { // debug: show updated node in console
+        // eslint-disable-next-line no-console
+        console.log('[setShapeForNode] nextNode=', next.find((x) => x.id === nodeContextMenu.nodeId));
+      } catch {}
       scheduleBroadcast(next, edges);
       return next;
     });
