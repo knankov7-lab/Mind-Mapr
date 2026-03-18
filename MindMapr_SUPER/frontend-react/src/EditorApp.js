@@ -499,7 +499,7 @@ export default function EditorApp() {
   }, [nodeContextMenu]);
 
   useEffect(() => {
-    if (nodeContextMenu && nodeContextMenu.editing) {
+    if (nodeContextMenu?.editing) {
       // small timeout to ensure element is in DOM
       setTimeout(() => {
         try {
@@ -508,7 +508,7 @@ export default function EditorApp() {
         } catch {}
       }, 10);
     }
-  }, [nodeContextMenu]);
+  }, [nodeContextMenu?.editing]);
 
   const onNodesChange = useCallback(
     (changes) => {
