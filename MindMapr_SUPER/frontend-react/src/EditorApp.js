@@ -384,6 +384,7 @@ export default function EditorApp() {
 
   const canvasRef = useRef(null);
   const [nodeContextMenu, setNodeContextMenu] = useState(null);
+  const renameInputRef = useRef(null);
 
   const IdeaNode = ({ data, selected }) => {
     const shape = (data && data.shape) || "rect";
@@ -404,14 +405,20 @@ export default function EditorApp() {
     const rect = canvasRef.current?.getBoundingClientRect();
     const x = rect ? ev.clientX - rect.left : ev.clientX;
     const y = rect ? ev.clientY - rect.top : ev.clientY;
-    setNodeContextMenu({ x, y, nodeId: node.id });
+    const label = (node && node.data && node.data.label) || "";
+    setNodeContextMenu({ x, y, nodeId: node.id, renameValue: label, editing: false });
   };
 
   const closeNodeMenu = () => setNodeContextMenu(null);
 
   const renameNode = () => {
     if (!nodeContextMenu?.nodeId) return closeNodeMenu();
-    const label = prompt("Нов текст на възела:");
+    setNodeContextMenu((prev) => ({ ...(prev || {}), editing: true }));
+  };
+
+  const commitRename = () => {
+    if (!nodeContextMenu?.nodeId) return closeNodeMenu();
+    const label = String(nodeContextMenu.renameValue || "").trim();
     if (!label) return closeNodeMenu();
     setNodes((prev) => {
       const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...n.data, label } } : n));
@@ -419,6 +426,14 @@ export default function EditorApp() {
       return next;
     });
     closeNodeMenu();
+  };
+
+  const cancelRename = () => {
+    if (nodeContextMenu?.editing) {
+      setNodeContextMenu((prev) => ({ ...(prev || {}), editing: false }));
+    } else {
+      closeNodeMenu();
+    }
   };
 
   const setShapeForNode = (shape) => {
@@ -443,6 +458,18 @@ export default function EditorApp() {
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
+  }, [nodeContextMenu]);
+
+  useEffect(() => {
+    if (nodeContextMenu && nodeContextMenu.editing) {
+      // small timeout to ensure element is in DOM
+      setTimeout(() => {
+        try {
+          renameInputRef.current?.focus();
+          renameInputRef.current?.select && renameInputRef.current.select();
+        } catch {}
+      }, 10);
+    }
   }, [nodeContextMenu]);
 
   const onNodesChange = useCallback(
@@ -1318,17 +1345,39 @@ export default function EditorApp() {
               className="contextMenu"
               style={{ position: 'absolute', left: nodeContextMenu.x, top: nodeContextMenu.y, zIndex: 1200 }}
             >
-              <div className="contextItem" onClick={renameNode}>✏️ Преименувай</div>
-              <div className="contextItem">
-                Форма
-                <div className="shapeList">
-                  <button className="shapeBtn" onClick={() => setShapeForNode('rect')}>▭</button>
-                  <button className="shapeBtn" onClick={() => setShapeForNode('pill')}>▯</button>
-                  <button className="shapeBtn" onClick={() => setShapeForNode('circle')}>◯</button>
-                  <button className="shapeBtn" onClick={() => setShapeForNode('diamond')}>◆</button>
+              {nodeContextMenu.editing ? (
+                <div className="contextItem" style={{ flexDirection: 'column', gap: 8 }}>
+                  <input
+                    ref={renameInputRef}
+                    className="contextRenameInput"
+                    value={nodeContextMenu.renameValue || ''}
+                    onChange={(e) => setNodeContextMenu((prev) => ({ ...(prev || {}), renameValue: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename();
+                      if (e.key === 'Escape') cancelRename();
+                    }}
+                    placeholder="Ново име..."
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    <button className="btn primary" onClick={commitRename}>OK</button>
+                    <button className="btn ghost" onClick={cancelRename}>Отмени</button>
+                  </div>
                 </div>
-              </div>
-              <div className="contextItem" onClick={closeNodeMenu}>✖️ Затвори</div>
+              ) : (
+                <>
+                  <div className="contextItem" onClick={renameNode}>✏️ Преименувай</div>
+                  <div className="contextItem">
+                    Форма
+                    <div className="shapeList">
+                      <button className="shapeBtn" onClick={() => setShapeForNode('rect')}>▭</button>
+                      <button className="shapeBtn" onClick={() => setShapeForNode('pill')}>▯</button>
+                      <button className="shapeBtn" onClick={() => setShapeForNode('circle')}>◯</button>
+                      <button className="shapeBtn" onClick={() => setShapeForNode('diamond')}>◆</button>
+                    </div>
+                  </div>
+                  <div className="contextItem" onClick={closeNodeMenu}>✖️ Затвори</div>
+                </>
+              )}
             </div>
           ) : null}
 
