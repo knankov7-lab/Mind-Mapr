@@ -142,6 +142,11 @@ async function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS password_resets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -209,6 +214,15 @@ async function initDatabase() {
   } catch (_e) {
     // ignore
   }
+
+  try {
+    await run("ALTER TABLE rooms ADD COLUMN approval_status TEXT DEFAULT 'pending'");
+  } catch (_e) {
+    // ignore
+  }
+
+  await run("UPDATE rooms SET approval_status = 'approved' WHERE public = 1 AND (approval_status IS NULL OR approval_status = '')");
+  await run("UPDATE rooms SET approval_status = 'pending' WHERE public = 0 AND (approval_status IS NULL OR approval_status = '')");
 
   await run("CREATE INDEX IF NOT EXISTS idx_rooms_public ON rooms(public)");
   await run("CREATE INDEX IF NOT EXISTS idx_rooms_team_id ON rooms(team_id)");

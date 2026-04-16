@@ -19,6 +19,8 @@ const {
 // AI seeding removed
 const {
   initDatabase,
+  run,
+  all,
   insertRoom,
   insertSave,
   getLatestSave,
@@ -71,8 +73,76 @@ app.use(express.json({ limit: "2mb" }));
 
 app.use(authMiddleware);
 
+const SETTINGS_TTL_MS = 5000;
+let settingsCache = { at: 0, data: null };
+
+function parseBool(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off"].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+function parseIntSafe(value, fallback) {
+  const num = Number(value);
+  return Number.isFinite(num) ? Math.trunc(num) : fallback;
+}
+
+async function getRuntimeSettings() {
+  const now = Date.now();
+  if (settingsCache.data && now - settingsCache.at < SETTINGS_TTL_MS) {
+    return settingsCache.data;
+  }
+
+  const rows = await all("SELECT key, value FROM settings");
+  const raw = {};
+  for (const row of rows || []) {
+    try {
+      raw[row.key] = JSON.parse(row.value);
+    } catch {
+      raw[row.key] = row.value;
+    }
+  }
+
+  const data = {
+    maintenanceMode: parseBool(raw.maintenanceMode, false),
+    enableLogging: parseBool(raw.enableLogging, true),
+    publicMapsApproval: parseBool(raw.publicMapsApproval, true),
+    maxNodesPerMap: Math.max(10, parseIntSafe(raw.maxNodesPerMap, 1000)),
+    maxRoomUsers: Math.max(1, parseIntSafe(raw.maxRoomUsers, 50)),
+    maxSavesPerUser: Math.max(1, parseIntSafe(raw.maxSavesPerUser, 100)),
+    theme: String(raw.theme || "dark").toLowerCase() === "light" ? "light" : "dark",
+    lang: String(raw.lang || "bg").toLowerCase(),
+  };
+
+  settingsCache = { at: now, data };
+  return data;
+}
+
+app.use(async (req, res, next) => {
+  try {
+    const settings = await getRuntimeSettings();
+    if (!settings.maintenanceMode) return next();
+
+    const isHealth = req.path === "/api/health";
+    const isPublicSettings = req.path === "/api/settings/public";
+    const isAdmin = !!req.user && isAdminUser(req);
+    if (isHealth || isPublicSettings || isAdmin) return next();
+
+    return res.status(503).json({ error: "System is in maintenance mode" });
+  } catch {
+    return next();
+  }
+});
+
 async function logAction(req, action, details) {
   try {
+    const settings = await getRuntimeSettings();
+    if (!settings.enableLogging) return;
     await insertLog(req.user?.id ?? null, action, details ?? null, req.ip);
   } catch {
     // ignore logging failures
@@ -286,6 +356,15 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true, service: "MindMapr API", user: userInfo });
 });
 
+app.get("/api/settings/public", async (_req, res) => {
+  try {
+    const settings = await getRuntimeSettings();
+    res.json({ theme: settings.theme, lang: settings.lang });
+  } catch (_err) {
+    res.json({ theme: "dark", lang: "bg" });
+  }
+});
+
 app.post("/api/auth/register", register);
 app.post("/api/auth/login", login);
 app.put("/api/auth/profile", requireAuth, updateProfile);
@@ -298,6 +377,19 @@ app.post("/api/maps/save", requireAuth, async (req, res) => {
   if (!room) return res.status(400).json({ error: "room required" });
 
   try {
+    const settings = await getRuntimeSettings();
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
+    const safeEdges = Array.isArray(edges) ? edges : [];
+
+    if (safeNodes.length > settings.maxNodesPerMap) {
+      return res.status(400).json({ error: `max nodes exceeded (${settings.maxNodesPerMap})` });
+    }
+
+    const userSaves = await listSavesByUser(req.user.id);
+    if (Array.isArray(userSaves) && userSaves.length >= settings.maxSavesPerUser) {
+      return res.status(400).json({ error: `max saves per user exceeded (${settings.maxSavesPerUser})` });
+    }
+
     const roomId = String(room);
 
     // If room exists and is team-bound, enforce membership.
@@ -310,6 +402,13 @@ app.post("/api/maps/save", requireAuth, async (req, res) => {
     }
 
     await insertRoom(roomId, null, req.user.id);
+
+    // Auto-approve when manual review is disabled.
+    if (!settings.publicMapsApproval) {
+      await run("UPDATE rooms SET public = 1, approval_status = 'approved' WHERE room_id = ?", [roomId]);
+    } else {
+      await run("UPDATE rooms SET approval_status = COALESCE(NULLIF(approval_status, ''), 'pending') WHERE room_id = ?", [roomId]);
+    }
 
     // Optionally attach a team to the room on first save
     const tid = teamId == null ? null : Number(teamId);
@@ -326,11 +425,11 @@ app.post("/api/maps/save", requireAuth, async (req, res) => {
 
     await insertSave(
       roomId,
-      JSON.stringify(Array.isArray(nodes) ? nodes : []),
-      JSON.stringify(Array.isArray(edges) ? edges : []),
+      JSON.stringify(safeNodes),
+      JSON.stringify(safeEdges),
       req.user.id
     );
-    await logAction(req, 'map_save', { room: roomId, nodes: Array.isArray(nodes) ? nodes.length : 0, edges: Array.isArray(edges) ? edges.length : 0 });
+    await logAction(req, 'map_save', { room: roomId, nodes: safeNodes.length, edges: safeEdges.length });
     return res.json({ ok: true });
   } catch (_err) {
     return res.status(500).json({ error: "Save failed" });
@@ -638,6 +737,18 @@ wss.on("connection", (ws) => {
       ws.meta.name = String(userDisplay).slice(0, 40);
 
       const state = getOrInitRoom(ws.meta.room);
+      try {
+        const settings = await getRuntimeSettings();
+        const participantsCount = Array.isArray(state.participants) ? state.participants.length : 0;
+        const isAdminJoin = String(ws.meta.role || "") === "admin";
+        if (!isAdminJoin && participantsCount >= settings.maxRoomUsers) {
+          ws.send(JSON.stringify({ type: 'error', room: ws.meta.room, error: `room is full (${settings.maxRoomUsers})` }));
+          return;
+        }
+      } catch {
+        // ignore settings read errors and continue with default behavior
+      }
+
       if (!state.participants.find((p) => p.clientId === ws.meta.clientId)) {
         state.participants.push({
           clientId: ws.meta.clientId,

@@ -20,10 +20,17 @@ async function ensureAdminSchema() {
   } catch (e) {
     // ignore if column already exists
   }
+  try {
+    await run("ALTER TABLE rooms ADD COLUMN approval_status TEXT DEFAULT 'pending'");
+  } catch (e) {
+    // ignore if column already exists
+  }
   await exec(`CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT
   )`);
+  await run("UPDATE rooms SET approval_status = 'approved' WHERE public = 1 AND (approval_status IS NULL OR approval_status = '')");
+  await run("UPDATE rooms SET approval_status = 'pending' WHERE public = 0 AND (approval_status IS NULL OR approval_status = '')");
   adminSchemaReady = true;
 }
 
@@ -47,7 +54,45 @@ router.get('/users', async (req, res) => {
 // List rooms
 router.get('/rooms', async (req, res) => {
   try {
-    const rows = await all('SELECT id, room_id, name, created_by, created_at, public FROM rooms ORDER BY created_at DESC');
+    const rows = await all(`
+      SELECT
+        r.id,
+        r.room_id,
+        r.name,
+        r.created_by,
+        r.created_at,
+        COALESCE(r.public, 0) AS public,
+        COALESCE(r.approval_status, CASE WHEN COALESCE(r.public, 0) = 1 THEN 'approved' ELSE 'pending' END) AS approval_status,
+        COALESCE(stats.saves_count, 0) AS saves_count,
+        stats.last_saved_at,
+        0 AS is_pending_only
+      FROM rooms r
+      LEFT JOIN (
+        SELECT room_id, COUNT(*) AS saves_count, MAX(created_at) AS last_saved_at
+        FROM saves
+        GROUP BY room_id
+      ) stats ON stats.room_id = r.room_id
+
+      UNION ALL
+
+      SELECT
+        NULL AS id,
+        s.room_id,
+        NULL AS name,
+        NULL AS created_by,
+        MIN(s.created_at) AS created_at,
+        0 AS public,
+        'pending' AS approval_status,
+        COUNT(*) AS saves_count,
+        MAX(s.created_at) AS last_saved_at,
+        1 AS is_pending_only
+      FROM saves s
+      LEFT JOIN rooms r ON r.room_id = s.room_id
+      WHERE r.room_id IS NULL
+      GROUP BY s.room_id
+
+      ORDER BY public DESC, last_saved_at DESC, created_at DESC
+    `);
     res.json({ rooms: rows });
   } catch (e) { res.status(500).json({ error: 'Failed to list rooms' }); }
 });
@@ -78,12 +123,32 @@ router.get('/saves', async (_req, res) => {
 router.post('/rooms/:room/approve', async (req, res) => {
   const room = req.params.room;
   try {
-    await run('UPDATE rooms SET public = 1 WHERE room_id = ?', [room]);
+    await run(
+      'INSERT OR IGNORE INTO rooms (room_id, name, created_by) VALUES (?, ?, ?)',
+      [room, null, req.user?.id ?? null]
+    );
+    await run("UPDATE rooms SET public = 1, approval_status = 'approved' WHERE room_id = ?", [room]);
     try {
       await insertLog(req.user?.id ?? null, 'admin_room_approve', { room }, req.ip);
     } catch {}
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Failed to approve room' }); }
+});
+
+// Reject room from public approval flow
+router.post('/rooms/:room/reject', async (req, res) => {
+  const room = req.params.room;
+  try {
+    await run(
+      'INSERT OR IGNORE INTO rooms (room_id, name, created_by) VALUES (?, ?, ?)',
+      [room, null, req.user?.id ?? null]
+    );
+    await run("UPDATE rooms SET public = 0, approval_status = 'rejected' WHERE room_id = ?", [room]);
+    try {
+      await insertLog(req.user?.id ?? null, 'admin_room_reject', { room }, req.ip);
+    } catch {}
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Failed to reject room' }); }
 });
 
 // Delete room and its saves

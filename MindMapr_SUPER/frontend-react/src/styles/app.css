@@ -1,14 +1,50 @@
 :root{
   --bg0:#0b1020;
   --bg1:#101a33;
+  --orb1:#25306a;
+  --orb2:#1f7a64;
   --card:#121a2e;
   --muted:#a8b3cf;
   --text:#e9eeff;
   --accent:#7c5cff;
   --accent2:#26d1a7;
   --warn:#ffdd57;
+  --header-bg: rgba(10,14,30,.45);
+  --header-border: rgba(255,255,255,.08);
+  --panel-bg: linear-gradient(120deg, rgba(18,26,46,.92) 60%, rgba(124,92,255,.12) 100%);
+  --panel-border: rgba(124,92,255,.18);
+  --surface: rgba(255,255,255,.13);
+  --surface-border: rgba(124,92,255,.18);
+  --ghost-bg: rgba(255,255,255,.08);
+  --ghost-bg-hover: rgba(255,255,255,.12);
+  --ghost-fg: #eef2ff;
+  --placeholder: rgba(233,238,255,.55);
   --shadow: 0 18px 55px rgba(0,0,0,.35);
   --radius:16px;
+}
+
+:root[data-theme="light"]{
+  --bg0:#f4f7ff;
+  --bg1:#e9efff;
+  --orb1:#dfe8ff;
+  --orb2:#d9f5ec;
+  --card:#ffffff;
+  --muted:#4e5d7a;
+  --text:#1f2a44;
+  --accent:#4d6bff;
+  --accent2:#11a57f;
+  --warn:#c58a00;
+  --header-bg: rgba(255,255,255,.8);
+  --header-border: rgba(31,42,68,.12);
+  --panel-bg: linear-gradient(120deg, rgba(255,255,255,.94) 60%, rgba(77,107,255,.08) 100%);
+  --panel-border: rgba(77,107,255,.22);
+  --surface: rgba(255,255,255,.9);
+  --surface-border: rgba(77,107,255,.22);
+  --ghost-bg: rgba(77,107,255,.1);
+  --ghost-bg-hover: rgba(77,107,255,.16);
+  --ghost-fg: #1f2a44;
+  --placeholder: rgba(31,42,68,.45);
+  --shadow: 0 10px 26px rgba(44, 63, 108, .16);
 }
 
 *{ box-sizing:border-box; }
@@ -16,8 +52,8 @@ body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
   color:var(--text);
-  background: radial-gradient(1200px 700px at 10% 0%, #25306a 0%, rgba(37,48,106,0) 55%),
-              radial-gradient(900px 600px at 100% 10%, #1f7a64 0%, rgba(31,122,100,0) 60%),
+  background: radial-gradient(1200px 700px at 10% 0%, var(--orb1) 0%, rgba(37,48,106,0) 55%),
+              radial-gradient(900px 600px at 100% 10%, var(--orb2) 0%, rgba(31,122,100,0) 60%),
               linear-gradient(120deg, var(--bg0), var(--bg1));
   height:100vh;
   overflow:auto;
@@ -40,8 +76,8 @@ kbd{
   align-items:center;
   justify-content:space-between;
   padding:14px 18px;
-  background: rgba(10,14,30,.45);
-  border-bottom:1px solid rgba(255,255,255,.08);
+  background: var(--header-bg);
+  border-bottom:1px solid var(--header-border);
   backdrop-filter: blur(10px);
   z-index:10;
 }
@@ -72,8 +108,8 @@ kbd{
   overflow:hidden;
 }
 .panel{
-  background: linear-gradient(120deg, rgba(18,26,46,.92) 60%, rgba(124,92,255,.12) 100%);
-  border:1px solid rgba(124,92,255,.18);
+  background: var(--panel-bg);
+  border:1px solid var(--panel-border);
   border-radius: 22px;
   box-shadow: 0 18px 55px rgba(124,92,255,.12), var(--shadow);
   overflow-y:auto;
@@ -157,8 +193,8 @@ kbd{
 .input, .btn, .select{
   width:100%;
   border-radius: 16px;
-  border:1.5px solid rgba(124,92,255,.18);
-  background: rgba(255,255,255,.13);
+  border:1.5px solid var(--surface-border);
+  background: var(--surface);
   color:var(--text);
   padding:14px 16px;
   outline:none;
@@ -199,7 +235,7 @@ kbd{
 @media (max-width: 420px){
   .panelActionGrid{ grid-template-columns: 1fr; }
 }
-.input::placeholder{ color: rgba(233,238,255,.55); }
+.input::placeholder{ color: var(--placeholder); }
 .btn{
   cursor:pointer;
   font-weight:800;
@@ -215,10 +251,10 @@ kbd{
   box-shadow: 0 2px 12px #7c5cff33;
 }
 .btn.ghost{
-  background: rgba(255,255,255,.08);
-  color: #eef2ff;
+  background: var(--ghost-bg);
+  color: var(--ghost-fg);
 }
-.btn.ghost:hover{ background: rgba(255,255,255,.12); }
+.btn.ghost:hover{ background: var(--ghost-bg-hover); }
 .btn.ghost:active{ transform: translateY(1px) scale(.998); }
 .btn.warn{
   background: rgba(255,221,87,.18);
@@ -618,23 +654,72 @@ kbd{
 .colorPalette .colorBtn:hover{ transform: scale(1.06); }
 
 /* Simple custom node visuals */
-.customNode{ padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.06); background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); box-shadow: 0 8px 28px rgba(0,0,0,.45); color:var(--text); min-width:80px; text-align:center; }
+.customNode{
+  padding:12px 16px;
+  border-radius:12px;
+  border:1.5px solid rgba(124,92,255,.22);
+  background: linear-gradient(135deg, rgba(124,92,255,.12) 0%, rgba(38,209,167,.06) 100%);
+  box-shadow: 0 0 20px rgba(124,92,255,.16), inset 0 1px 0 rgba(255,255,255,.1);
+  color:var(--text);
+  min-width:80px;
+  text-align:center;
+  transition: all .2s cubic-bezier(.34,.1,.68,.55);
+  backdrop-filter: blur(8px);
+  position: relative;
+}
 .customNode{ position:relative; }
-.customNode .nodeLabel{ font-weight:800; font-size:14px; }
-.customNode.shape-rect{ border-radius:8px; }
-.customNode.shape-pill{ border-radius:999px; padding-left:20px; padding-right:20px; }
-.customNode.shape-circle{ border-radius:999px; width:56px; height:56px; min-width:56px; padding:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.customNode.shape-diamond{ transform: rotate(45deg); width:64px; height:64px; min-width:64px; padding:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.customNode .nodeLabel{ font-weight:800; font-size:14px; letter-spacing:.3px; }
+.customNode:hover{
+  border-color: rgba(124,92,255,.4);
+  background: linear-gradient(135deg, rgba(124,92,255,.18) 0%, rgba(38,209,167,.1) 100%);
+  box-shadow: 0 0 28px rgba(124,92,255,.24), inset 0 1px 0 rgba(255,255,255,.14);
+  transform: translateY(-2px);
+}
+.customNode.selected{
+  border-color: rgba(124,92,255,.6);
+  background: linear-gradient(135deg, rgba(124,92,255,.2) 0%, rgba(38,209,167,.12) 100%);
+  box-shadow: 0 0 2px 3px rgba(124,92,255,.24), 0 0 28px rgba(124,92,255,.28), inset 0 1px 0 rgba(255,255,255,.16);
+}
+.customNode.shape-rect{ border-radius:10px; }
+.customNode.shape-pill{ border-radius:999px; padding-left:24px; padding-right:24px; }
+.customNode.shape-circle{
+  border-radius:999px;
+  width:56px;
+  height:56px;
+  min-width:56px;
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+.customNode.shape-circle:hover{
+  transform: scale(1.08);
+}
+.customNode.shape-diamond{
+  transform: rotate(45deg);
+  width:64px;
+  height:64px;
+  min-width:64px;
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+.customNode.shape-diamond:hover{
+  transform: rotate(45deg) scale(1.06);
+}
 .customNode.shape-diamond .nodeLabel{ transform: rotate(-45deg); }
 
-/* Remove default border / outline from ReactFlow wrapper for the idea node type
-   so it doesn't show a rectangle behind the custom shape. */
-.react-flow__node-idea{ background:transparent!important; border:none!important; box-shadow:none!important; padding:0!important; border-radius:0!important; }
-
-.customNode.preview{ box-shadow: 0 0 0 4px rgba(124,92,255,.18), 0 8px 28px rgba(0,0,0,.45); transition: box-shadow .12s, transform .08s; }
-.customNode.preview.shape-diamond{ transform: rotate(45deg) scale(1.03); }
-.customNode.preview.shape-circle{ transform: scale(1.04); }
-.customNode.preview.shape-pill{ transform: scale(1.03); }
+.customNode.preview{
+  box-shadow: 0 0 32px rgba(124,92,255,.28);
+  transition: box-shadow .15s ease, transform .12s ease;
+}
+.customNode.preview.shape-diamond{ transform: rotate(45deg) scale(1.08); }
+.customNode.preview.shape-circle{ transform: scale(1.12); }
+.customNode.preview.shape-pill{ transform: scale(1.07); }
+.customNode.preview.shape-rect{ transform: scale(1.06); }
 
 /* Inline rename input inside context menu */
 .contextRenameInput{
@@ -656,7 +741,13 @@ kbd{
   width:14px;
   height:14px;
   border-radius:4px;
-  border:1px solid rgba(255,255,255,.14);
-  box-shadow: 0 6px 18px rgba(0,0,0,.32);
+  border:1.5px solid rgba(255,255,255,.24);
+  box-shadow: 0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2);
+  transition: all .15s ease;
+}
+.customNode:hover .colorSwatch{
+  width:16px;
+  height:16px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.3);
 }
 
