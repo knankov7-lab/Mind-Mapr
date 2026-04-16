@@ -479,7 +479,7 @@ export default function EditorApp() {
       shapeInline.justifyContent = 'center';
       shapeInline.borderRadius = '999px';
       shapeInline.overflow = 'hidden';
-    } else if (displayShape === 'pill') {
+    } else if (displayShape === 'hexagon') {
       shapeInline.borderRadius = '999px';
       shapeInline.paddingLeft = '20px';
       shapeInline.paddingRight = '20px';
