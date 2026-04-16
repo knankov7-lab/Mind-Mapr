@@ -29,9 +29,9 @@ const bcrypt = require('bcryptjs');
   }
   // Demo saves
   const demoNodes = [
-    { id: 'root', position: { x: 0, y: 0 }, data: { label: 'Главна тема' }, type: 'default' },
-    { id: 'idea1', position: { x: 120, y: 80 }, data: { label: 'Идея 1' }, type: 'default' },
-    { id: 'idea2', position: { x: -100, y: 60 }, data: { label: 'Идея 2' }, type: 'default' }
+    { id: 'root', position: { x: 0, y: 0 }, data: { label: 'Главна тема', shape: 'rect' }, type: 'idea' },
+    { id: 'idea1', position: { x: 120, y: 80 }, data: { label: 'Идея 1', shape: 'rect' }, type: 'idea' },
+    { id: 'idea2', position: { x: -100, y: 60 }, data: { label: 'Идея 2', shape: 'rect' }, type: 'idea' }
   ];
   const demoEdges = [
     { id: 'e-root-idea1', source: 'root', target: 'idea1', animated: true },

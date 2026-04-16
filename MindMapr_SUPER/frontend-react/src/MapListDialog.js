@@ -64,7 +64,10 @@ export default function MapListDialog({ open, onClose, onSelect }) {
                   <div className="dialog-cardMain">
                     <button
                       className="btn ghost dialog-listButton"
-                      onClick={() => onSelect(m.room_id)}>
+                      onClick={() => {
+                       
+                        onSelect(m.room_id)
+                      }}>
                       <div className="dialog-room">{m.room_id}</div>
                       <div className="dialog-meta small">{m.title || "(без заглавие)"} • {new Date(m.created_at).toLocaleString()}</div>
                     </button>

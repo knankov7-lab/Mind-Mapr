@@ -399,6 +399,7 @@ export default function EditorApp() {
     try {
       const res = await mapsAPI.load(roomId);
       const data = res.data;
+      console.log("Loaded map data:", data);
       if (!data?.nodes) return showToast("Невалиден запис.");
       setNodes(normalizeNodes(data.nodes));
       setEdges(data.edges || []);
@@ -412,15 +413,29 @@ export default function EditorApp() {
   // normalize nodes to use local 'idea' node type and default shape
   const normalizeNodes = (list) => {
     if (!Array.isArray(list)) return [];
-    return list.map((n) => ({
-      ...n,
-      type: n.type || "idea",
-      data: {
-        ...(n.data || {}),
-        shape: (n.data && n.data.shape) || "rect",
-      },
-    }));
+    return list.map((n) => {
+      // Strip shape-related keys from node.style – those belong inside the
+      // custom IdeaNode component, not on the ReactFlow wrapper div.
+      const rawStyle = n.style || {};
+      const cleanStyle = { ...rawStyle };
+      delete cleanStyle.width;
+      delete cleanStyle.height;
+      delete cleanStyle.padding;
+      delete cleanStyle.borderRadius;
+      delete cleanStyle.paddingLeft;
+      delete cleanStyle.paddingRight;
+      return {
+        ...n,
+        type: "idea",
+        style: Object.keys(cleanStyle).length ? cleanStyle : undefined,
+        data: {
+          ...(n.data || {}),
+          shape: (n.data && n.data.shape) || "rect",
+        },
+      };
+    });
   };
+  
 
   const hexToRgba = (hex, alpha = 1) => {
     if (!hex || typeof hex !== 'string') return null;
@@ -451,16 +466,19 @@ export default function EditorApp() {
       try { console.log('[IdeaNode] id=', id, 'color=', displayColor); } catch {}
     }
 
-    // add inline adjustments per shape so changes are visible even if CSS rules are overridden
+    // Inline adjustments per shape – must also reset conflicting base
+    // .customNode styles (min-width, padding) so they don't override shape sizing.
     const shapeInline = {};
     if (displayShape === 'circle') {
       shapeInline.width = '56px';
       shapeInline.height = '56px';
+      shapeInline.minWidth = '56px';
       shapeInline.padding = '0';
       shapeInline.display = 'flex';
       shapeInline.alignItems = 'center';
       shapeInline.justifyContent = 'center';
       shapeInline.borderRadius = '999px';
+      shapeInline.overflow = 'hidden';
     } else if (displayShape === 'pill') {
       shapeInline.borderRadius = '999px';
       shapeInline.paddingLeft = '20px';
@@ -468,9 +486,16 @@ export default function EditorApp() {
     } else if (displayShape === 'diamond') {
       shapeInline.width = '64px';
       shapeInline.height = '64px';
+      shapeInline.minWidth = '64px';
+      shapeInline.padding = '0';
       shapeInline.display = 'flex';
       shapeInline.alignItems = 'center';
       shapeInline.justifyContent = 'center';
+      shapeInline.transform = 'rotate(45deg)';
+      shapeInline.overflow = 'hidden';
+    } else {
+      // rect – ensure defaults
+      shapeInline.borderRadius = '8px';
     }
 
     const finalStyle = { ...style, ...shapeInline };
@@ -486,12 +511,14 @@ export default function EditorApp() {
             title={`color: ${displayColor}`}
           />
         ) : null}
-        <div className="nodeLabel">{data?.label}</div>
+        <div className="nodeLabel" style={displayShape === 'diamond' ? { transform: 'rotate(-45deg)' } : undefined}>{data?.label}</div>
       </div>
     );
   };
 
   const nodeTypes = useMemo(() => ({ idea: IdeaNode }), []);
+
+  console.log(nodes, "render nodes");
 
   const openNodeMenuAtEvent = (ev, node) => {
     if (!canEdit) return;
@@ -546,27 +573,22 @@ export default function EditorApp() {
     setNodes((prev) => {
       const next = (prev || []).map((n) => {
         if (n.id !== nodeContextMenu.nodeId) return n;
-        const existingStyle = n.style || {};
-        let styleForShape = { ...(existingStyle || {}) };
-        if (shape === 'circle') {
-          styleForShape = { ...styleForShape, width: '56px', height: '56px', padding: '0', borderRadius: '999px' };
-        } else if (shape === 'pill') {
-          styleForShape = { ...styleForShape, borderRadius: '999px', paddingLeft: '20px', paddingRight: '20px' };
-        } else if (shape === 'diamond') {
-          styleForShape = { ...styleForShape, width: '64px', height: '64px' };
-        } else {
-          // rect: remove shape-specific overrides
-          const copy = { ...(styleForShape || {}) };
-          delete copy.width;
-          delete copy.height;
-          delete copy.padding;
-          delete copy.borderRadius;
-          delete copy.paddingLeft;
-          delete copy.paddingRight;
-          styleForShape = copy;
-        }
-
-        return { ...n, data: { ...(n.data || {}), shape }, style: styleForShape };
+        // Only store the shape in data – visual rendering is handled entirely
+        // by the IdeaNode component. Remove any stale shape overrides
+        // from node.style so the ReactFlow wrapper stays neutral.
+        const rawStyle = n.style || {};
+        const cleanStyle = { ...rawStyle };
+        delete cleanStyle.width;
+        delete cleanStyle.height;
+        delete cleanStyle.padding;
+        delete cleanStyle.borderRadius;
+        delete cleanStyle.paddingLeft;
+        delete cleanStyle.paddingRight;
+        return {
+          ...n,
+          data: { ...(n.data || {}), shape },
+          style: Object.keys(cleanStyle).length ? cleanStyle : undefined,
+        };
       });
       scheduleBroadcast(next, edges);
       return next;
