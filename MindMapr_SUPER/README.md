@@ -25,3 +25,8 @@ npm start
 - Zoom/Pan + MiniMap
 - Realtime колаборация (WebSocket)
 - AI анализ (демо)
+
+## Hosting
+ Turso - SQL lite 
+ Render - Node js + express 
+ Vercel - FE

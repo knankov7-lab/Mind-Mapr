@@ -1,3 +1,52 @@
+const { createClient } = require("@libsql/client");
+
+let db;
+
+function ensureDb() {
+  if (!db) throw new Error("Database not initialized");
+}
+
+// Normalize libsql result rows to plain objects
+function toRows(result) {
+  return (result.rows || []).map((row) => {
+    const obj = {};
+    for (const col of result.columns) obj[col] = row[col];
+    return obj;
+  });
+}
+
+async function run(sql, params = []) {
+  ensureDb();
+  const result = await db.execute({ sql, args: params });
+  return { lastID: Number(result.lastInsertRowid ?? 0), changes: result.rowsAffected ?? 0 };
+}
+
+async function get(sql, params = []) {
+  ensureDb();
+  const result = await db.execute({ sql, args: params });
+  const rows = toRows(result);
+  return rows[0] ?? null;
+}
+
+async function all(sql, params = []) {
+  ensureDb();
+  const result = await db.execute({ sql, args: params });
+  return toRows(result);
+}
+
+// exec: run multiple statements separated by semicolons
+async function exec(sql) {
+  ensureDb();
+  // libsql client requires statements one at a time
+  const stmts = sql
+    .split(/;\s*/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  for (const stmt of stmts) {
+    await db.execute(stmt);
+  }
+}
+
 async function listSaves() {
   return all(
     "SELECT id, room_id, created_at, saved_by FROM saves ORDER BY created_at DESC"
@@ -10,68 +59,15 @@ async function listSavesByUser(userId) {
     [userId]
   );
 }
-const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
-
-const dbPath = path.join(__dirname, "mindmapr.db");
-let db;
-
-function ensureDb() {
-  if (!db) throw new Error("Database not initialized");
-}
-
-function run(sql, params = []) {
-  ensureDb();
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function onRun(err) {
-      if (err) return reject(err);
-      resolve({ lastID: this.lastID, changes: this.changes });
-    });
-  });
-}
-
-function get(sql, params = []) {
-  ensureDb();
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) return reject(err);
-      resolve(row);
-    });
-  });
-}
-
-function all(sql, params = []) {
-  ensureDb();
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
-}
-
-function exec(sql) {
-  ensureDb();
-  return new Promise((resolve, reject) => {
-    db.exec(sql, (err) => {
-      if (err) return reject(err);
-      resolve();
-    });
-  });
-}
 
 async function initDatabase() {
   if (db) return db;
 
-  db = await new Promise((resolve, reject) => {
-    const connection = new sqlite3.Database(dbPath, (err) => {
-      if (err) return reject(err);
-      resolve(connection);
-    });
-  });
+  const url = process.env.TURSO_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+  if (!url) throw new Error("TURSO_URL env var is required");
 
-  await run("PRAGMA journal_mode = WAL");
-  await run("PRAGMA foreign_keys = ON");
+  db = createClient({ url, authToken });
 
   await exec(`
     CREATE TABLE IF NOT EXISTS users (
