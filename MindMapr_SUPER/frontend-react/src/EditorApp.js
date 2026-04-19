@@ -474,10 +474,10 @@ export default function EditorApp() {
     // .customNode styles (min-width, padding) so they don't override shape sizing.
     const shapeInline = {};
     if (displayShape === 'circle') {
-      shapeInline.width = '56px';
-      shapeInline.height = '56px';
-      shapeInline.minWidth = '56px';
-      shapeInline.padding = '0';
+      shapeInline.width = '112px';
+      shapeInline.height = '112px';
+      shapeInline.minWidth = '112px';
+      shapeInline.padding = '10px';
       shapeInline.display = 'flex';
       shapeInline.alignItems = 'center';
       shapeInline.justifyContent = 'center';
@@ -508,13 +508,6 @@ export default function EditorApp() {
         className={`customNode shape-${displayShape} ${isPreview ? "preview" : ""} ${selected ? "selected" : ""}`}
         style={finalStyle}
       >
-        {displayColor ? (
-          <div
-            className="colorSwatch"
-            style={{ background: displayColor }}
-            title={`color: ${displayColor}`}
-          />
-        ) : null}
         <div className="nodeLabel" style={displayShape === 'diamond' ? { transform: 'rotate(-45deg)' } : undefined}>{data?.label}</div>
       </div>
     );

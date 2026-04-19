@@ -684,14 +684,25 @@ kbd{
 .customNode.shape-pill{ border-radius:999px; padding-left:24px; padding-right:24px; }
 .customNode.shape-circle{
   border-radius:999px;
-  width:56px;
-  height:56px;
-  min-width:56px;
-  padding:0;
+  width:112px;
+  height:112px;
+  min-width:112px;
+  padding:10px;
   display:flex;
   align-items:center;
   justify-content:center;
   overflow:hidden;
+}
+.customNode.shape-circle .nodeLabel{
+  width:78%;
+  max-width:78%;
+  display:block;
+  font-size:12px;
+  line-height:1.15;
+  letter-spacing:.1px;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  text-align:center;
 }
 .customNode.shape-circle:hover{
   transform: scale(1.08);
@@ -733,21 +744,4 @@ kbd{
 }
 .contextRenameInput:focus{ box-shadow: 0 6px 18px rgba(124,92,255,.12); border-color: rgba(124,92,255,.28); }
 
-/* small swatch shown on nodes with a color */
-.colorSwatch{
-  position:absolute;
-  top:8px;
-  right:8px;
-  width:14px;
-  height:14px;
-  border-radius:4px;
-  border:1.5px solid rgba(255,255,255,.24);
-  box-shadow: 0 4px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2);
-  transition: all .15s ease;
-}
-.customNode:hover .colorSwatch{
-  width:16px;
-  height:16px;
-  box-shadow: 0 6px 16px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.3);
-}
 

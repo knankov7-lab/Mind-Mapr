@@ -62,10 +62,10 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
 
     const shapeInline = {};
     if (displayShape === "circle") {
-      shapeInline.width = "56px";
-      shapeInline.height = "56px";
-      shapeInline.minWidth = "56px";
-      shapeInline.padding = "0";
+      shapeInline.width = "112px";
+      shapeInline.height = "112px";
+      shapeInline.minWidth = "112px";
+      shapeInline.padding = "10px";
       shapeInline.display = "flex";
       shapeInline.alignItems = "center";
       shapeInline.justifyContent = "center";
@@ -91,13 +91,6 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
 
     return (
       <div className={`customNode shape-${displayShape}`} style={{ ...style, ...shapeInline }}>
-        {displayColor ? (
-          <div
-            className="colorSwatch"
-            style={{ background: displayColor }}
-            title={`color: ${displayColor}`}
-          />
-        ) : null}
         <div className="nodeLabel" style={displayShape === "diamond" ? { transform: "rotate(-45deg)" } : undefined}>
           {data?.label}
         </div>
