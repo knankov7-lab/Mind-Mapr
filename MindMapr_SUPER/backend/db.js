@@ -1,4 +1,5 @@
 const { createClient } = require("@libsql/client");
+const { toSofiaSqlString } = require("./time");
 
 let db;
 
@@ -242,8 +243,8 @@ async function insertTeam(name, ownerId, description = null) {
   if (!safeName) throw new Error("team name required");
   const safeDesc = description == null ? null : String(description).trim().slice(0, 500);
   return run(
-    "INSERT INTO teams (name, owner_id, description) VALUES (?, ?, ?)",
-    [safeName, ownerId, safeDesc]
+    "INSERT INTO teams (name, owner_id, description, created_at) VALUES (?, ?, ?, ?)",
+    [safeName, ownerId, safeDesc, toSofiaSqlString()]
   );
 }
 
@@ -255,8 +256,8 @@ async function addTeamMember(teamId, userId, roleInTeam = "viewer") {
   const role = String(roleInTeam || "viewer").toLowerCase();
   const safeRole = ["owner", "editor", "viewer"].includes(role) ? role : "viewer";
   return run(
-    "INSERT OR IGNORE INTO team_members (team_id, user_id, role_in_team) VALUES (?, ?, ?)",
-    [teamId, userId, safeRole]
+    "INSERT OR IGNORE INTO team_members (team_id, user_id, role_in_team, joined_at) VALUES (?, ?, ?, ?)",
+    [teamId, userId, safeRole, toSofiaSqlString()]
   );
 }
 
@@ -332,8 +333,8 @@ async function insertComment(roomId, userId, nodeId, content) {
   if (!txt) throw new Error("content required");
   const nid = nodeId == null ? null : String(nodeId).trim().slice(0, 120);
   return run(
-    "INSERT INTO comments (room_id, user_id, node_id, content) VALUES (?, ?, ?, ?)",
-    [rid, userId, nid, txt]
+    "INSERT INTO comments (room_id, user_id, node_id, content, created_at) VALUES (?, ?, ?, ?, ?)",
+    [rid, userId, nid, txt, toSofiaSqlString()]
   );
 }
 
@@ -381,8 +382,8 @@ async function insertLog(userId, action, details = null, ip = null) {
   const safeDetails = details == null ? null : JSON.stringify(details);
   const safeIp = ip == null ? null : String(ip).slice(0, 80);
   return run(
-    "INSERT INTO logs (user_id, action, details, ip) VALUES (?, ?, ?, ?)",
-    [safeUserId, safeAction, safeDetails, safeIp]
+    "INSERT INTO logs (user_id, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?)",
+    [safeUserId, safeAction, safeDetails, safeIp, toSofiaSqlString()]
   );
 }
 
@@ -430,8 +431,8 @@ async function insertPasswordReset(userId, tokenHash, expiresAtIso) {
   if (!safeHash) throw new Error("token hash required");
   if (!safeExpires) throw new Error("expires required");
   return run(
-    "INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
-    [userId, safeHash, safeExpires]
+    "INSERT INTO password_resets (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)",
+    [userId, safeHash, safeExpires, toSofiaSqlString()]
   );
 }
 
@@ -443,13 +444,13 @@ async function getPasswordResetByHash(tokenHash) {
 }
 
 async function markPasswordResetUsed(id) {
-  return run("UPDATE password_resets SET used_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
+  return run("UPDATE password_resets SET used_at = ? WHERE id = ?", [toSofiaSqlString(), id]);
 }
 
 async function insertUser(email, username, passwordHash, role = "user") {
   return run(
-    "INSERT INTO users (email, username, password_hash, role) VALUES (?, ?, ?, ?)",
-    [email, username, passwordHash, role]
+    "INSERT INTO users (email, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+    [email, username, passwordHash, role, toSofiaSqlString()]
   );
 }
 
@@ -469,8 +470,8 @@ async function listUsers() {
 
 async function insertRoom(roomId, name, createdBy) {
   return run(
-    "INSERT OR IGNORE INTO rooms (room_id, name, created_by) VALUES (?, ?, ?)",
-    [roomId, name, createdBy]
+    "INSERT OR IGNORE INTO rooms (room_id, name, created_by, created_at) VALUES (?, ?, ?, ?)",
+    [roomId, name, createdBy, toSofiaSqlString()]
   );
 }
 
@@ -525,8 +526,8 @@ async function updateRoomMeta(roomId, name, description, tags) {
 
 async function insertSave(roomId, nodes, edges, savedBy) {
   return run(
-    "INSERT INTO saves (room_id, nodes, edges, saved_by) VALUES (?, ?, ?, ?)",
-    [roomId, nodes, edges, savedBy]
+    "INSERT INTO saves (room_id, nodes, edges, saved_by, created_at) VALUES (?, ?, ?, ?, ?)",
+    [roomId, nodes, edges, savedBy, toSofiaSqlString()]
   );
 }
 
@@ -587,8 +588,8 @@ async function insertAiExample(intent, input, output, tags = null) {
   const safeTags = tags == null ? null : String(tags);
 
   return run(
-    "INSERT INTO ai_examples (intent, input, output, tags) VALUES (?, ?, ?, ?)",
-    [safeIntent, safeInput, safeOutput, safeTags]
+    "INSERT INTO ai_examples (intent, input, output, tags, created_at) VALUES (?, ?, ?, ?, ?)",
+    [safeIntent, safeInput, safeOutput, safeTags, toSofiaSqlString()]
   );
 }
 
@@ -610,8 +611,8 @@ async function insertInvite(token, roomId, role, expiresAtIso = null, createdBy 
   if (!rid) throw new Error('room required');
   const safeSingle = singleUse ? 1 : 0;
   return run(
-    'INSERT INTO invites (token, room_id, role, expires_at, created_by, single_use) VALUES (?, ?, ?, ?, ?, ?)',
-    [t, rid, r, expiresAtIso || null, createdBy == null ? null : Number(createdBy), safeSingle]
+    'INSERT INTO invites (token, room_id, role, expires_at, created_by, single_use, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [t, rid, r, expiresAtIso || null, createdBy == null ? null : Number(createdBy), safeSingle, toSofiaSqlString()]
   );
 }
 
@@ -627,7 +628,7 @@ async function deleteInviteByToken(token) {
 
 async function markInviteUsed(token) {
   if (!token) return null;
-  return run('UPDATE invites SET used_at = CURRENT_TIMESTAMP WHERE token = ?', [String(token)]);
+  return run('UPDATE invites SET used_at = ? WHERE token = ?', [toSofiaSqlString(), String(token)]);
 }
 
 module.exports = {

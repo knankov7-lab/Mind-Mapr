@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import api from "./api";
+import { formatSofiaDateTime } from "./time";
 
 export default function AdminPanel({ onClose }) {
 	const [users, setUsers] = useState([]);
@@ -236,7 +237,7 @@ export default function AdminPanel({ onClose }) {
 										<td>{save.id}</td>
 										<td>{save.room_id}</td>
 										<td>{save.saved_by_email || save.saved_by_username || save.saved_by || "-"}</td>
-										<td>{save.created_at ? new Date(save.created_at).toLocaleString() : "-"}</td>
+										<td>{save.created_at ? formatSofiaDateTime(save.created_at) : "-"}</td>
 										<td>
 											<button className="btn warn" style={{ fontSize: 12 }} onClick={() => deleteSave(save.id)}>🗑 Изтрий</button>
 										</td>
@@ -278,7 +279,7 @@ export default function AdminPanel({ onClose }) {
 							<tbody>
 								{(logs || []).map((log) => (
 									<tr key={log.id} style={{ borderTop: "1px solid rgba(255,255,255,.06)" }}>
-										<td style={{ padding: "10px 10px", whiteSpace: "nowrap", opacity: .9 }}>{log.created_at ? new Date(log.created_at).toLocaleString() : "-"}</td>
+										<td style={{ padding: "10px 10px", whiteSpace: "nowrap", opacity: .9 }}>{log.created_at ? formatSofiaDateTime(log.created_at) : "-"}</td>
 										<td style={{ padding: "10px 10px", maxWidth: 220, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: .9 }} title={log.user_email || ""}>{log.user_email || log.user_username || log.user_id || "—"}</td>
 										<td style={{ padding: "10px 10px", whiteSpace: "nowrap" }}>{log.action}</td>
 										<td style={{ padding: "10px 10px", maxWidth: 360, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: .9 }} title={log.details || ""}>{log.details || "—"}</td>

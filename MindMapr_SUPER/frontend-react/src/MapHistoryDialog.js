@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { mapsAPI } from "./api";
 import ReactFlow, { Background } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { formatSofiaDateTime } from "./time";
 
 export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
   const [items, setItems] = useState([]);
@@ -194,7 +195,7 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
                     title="Възстанови тази версия"
                   >
                     <div className="dialog-room">Версия #{sv.id}</div>
-                    <div className="dialog-meta small">{new Date(sv.created_at).toLocaleString()}</div>
+                    <div className="dialog-meta small">{formatSofiaDateTime(sv.created_at)}</div>
                   </button>
                 </div>
                 <div className="dialog-cardActions">

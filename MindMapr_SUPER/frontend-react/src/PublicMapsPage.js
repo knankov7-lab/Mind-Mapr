@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { mapsAPI } from "./api";
+import { formatSofiaDateTime } from "./time";
 
 export default function PublicMapsPage({ open, onClose, onSelect }) {
   const [rooms, setRooms] = useState([]);
@@ -78,7 +79,7 @@ export default function PublicMapsPage({ open, onClose, onSelect }) {
                   ) : null}
                   <span>Записи: {r.saves_count ?? 0}</span>
                   {r.last_saved_at ? (
-                    <span> • Последно: {new Date(r.last_saved_at).toLocaleString()}</span>
+                    <span> • Последно: {formatSofiaDateTime(r.last_saved_at)}</span>
                   ) : null}
                 </div>
               </div>

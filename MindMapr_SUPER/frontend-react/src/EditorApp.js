@@ -18,6 +18,7 @@ import { mapsAPI, roomsAPI, commentsAPI } from "./api";
 import AdminPanel from "./AdminPanel";
 import MapListDialog from "./MapListDialog";
 import MapHistoryDialog from "./MapHistoryDialog";
+import { formatSofiaDateTime, formatSofiaTime, getSofiaNowTime } from "./time";
 
 function inferWsUrl() {
   const fromEnv = process.env.REACT_APP_WS_URL;
@@ -55,6 +56,7 @@ export default function EditorApp() {
   const [name, setName] = useState(() => localStorage.getItem("mm_name") || "guest");
   const [status, setStatus] = useState("offline"); // online/offline
   const [lastSync, setLastSync] = useState(null);
+  const [clockTime, setClockTime] = useState(() => getSofiaNowTime());
   const [toast, setToast] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -172,6 +174,13 @@ export default function EditorApp() {
     setRoomInUrl(room);
   }, [room]);
 
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setClockTime(getSofiaNowTime());
+    }, 1000);
+    return () => window.clearInterval(timerId);
+  }, []);
+
   const showToast = useCallback((msg) => {
     setToast(msg);
     window.clearTimeout(pendingTimerRef.current);
@@ -252,7 +261,7 @@ export default function EditorApp() {
           suppressRemoteRef.current = true;
           setNodes(normalizeNodes(msg.nodes || []));
           setEdges(msg.edges || []);
-          setLastSync(new Date().toLocaleTimeString());
+          setLastSync(Date.now());
           window.setTimeout(() => (suppressRemoteRef.current = false), 0);
         }
         if (msg.type === "toast" && msg.room === room) {
@@ -375,7 +384,7 @@ export default function EditorApp() {
           edges: nextEdges
         })
       );
-      setLastSync(new Date().toLocaleTimeString());
+      setLastSync(Date.now());
     },
     [canEdit, room, name]
   );
@@ -827,7 +836,7 @@ export default function EditorApp() {
       <div style={{marginTop:10,maxHeight:140,overflow:'auto',borderRadius:12,border:'1px solid rgba(255,255,255,.08)',background:'rgba(0,0,0,.12)',padding:10,fontSize:12}}>
         {(chatMessages || []).map((m) => (
           <div key={m.id || m.at || Math.random()} style={{marginBottom:6}}>
-            <span style={{opacity:.75}}>[{m.at ? new Date(m.at).toLocaleTimeString() : ''}]</span>{' '}
+            <span style={{opacity:.75}}>[{formatSofiaTime(m.at)}]</span>{' '}
             <b style={{color:'#dfe6ff'}}>{m.name || 'guest'}:</b>{' '}
             <span style={{opacity:.95}}>{m.text}</span>
           </div>
@@ -859,7 +868,7 @@ export default function EditorApp() {
             <div style={{display:'flex',justifyContent:'space-between',gap:10}}>
               <div style={{opacity:.9}}>
                 <b>{c.user_username || c.user_email || c.user_id || 'user'}</b>
-                <span style={{opacity:.75}}> · {c.created_at ? new Date(c.created_at).toLocaleString() : ''}</span>
+                <span style={{opacity:.75}}> · {formatSofiaDateTime(c.created_at)}</span>
                 {c.node_id ? <span style={{opacity:.75}}> · node: {c.node_id}</span> : null}
               </div>
             </div>
@@ -1294,8 +1303,8 @@ export default function EditorApp() {
             <span className={"dot " + (status === "online" ? "ok" : "bad")} />
             {status === "online" ? "онлайн" : "офлайн"}
           </span>
-          <span className="pill" title="Последна синхронизация">
-            ⏱ {lastSync || "—"}
+          <span className="pill" title={lastSync ? `Последна синхронизация: ${formatSofiaDateTime(lastSync)}` : "Текущ час в България"}>
+            ⏱ {clockTime}
           </span>
           {isAdmin ? (
             <button className="btn ghost" onClick={() => setShowAdmin(true)}>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { mapsAPI } from "./api";
+import { formatSofiaDateTime } from "./time";
 
 export default function MapListDialog({ open, onClose, onSelect }) {
   const [maps, setMaps] = useState([]);
@@ -69,7 +70,7 @@ export default function MapListDialog({ open, onClose, onSelect }) {
                         onSelect(m.room_id)
                       }}>
                       <div className="dialog-room">{m.room_id}</div>
-                      <div className="dialog-meta small">{m.title || "(без заглавие)"} • {new Date(m.created_at).toLocaleString()}</div>
+                      <div className="dialog-meta small">{m.title || "(без заглавие)"} • {formatSofiaDateTime(m.created_at)}</div>
                     </button>
                   </div>
                   <div className="dialog-cardActions">

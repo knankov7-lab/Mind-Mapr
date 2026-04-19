@@ -12,6 +12,7 @@ const {
   markPasswordResetUsed,
   insertLog,
 } = require("./db");
+const { toSofiaSqlString } = require("./time");
 
 const JWT_SECRET = process.env.JWT_SECRET || "mindmapr-dev-secret";
 
@@ -176,7 +177,7 @@ async function requestPasswordReset(req, res) {
 
     const token = crypto.randomBytes(24).toString("hex");
     const tokenHash = sha256Hex(token);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 min
+    const expiresAt = toSofiaSqlString(new Date(Date.now() + 60 * 60 * 1000)); // 60 min
 
     await insertPasswordReset(user.id, tokenHash, expiresAt);
     await insertLog(user.id, "password_reset_requested", { email: normalizedEmail }, req.ip);

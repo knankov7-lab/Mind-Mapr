@@ -4,6 +4,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
+const { toSofiaSqlString } = require("./time");
 const {
   authMiddleware,
   requireAuth,
@@ -364,7 +365,7 @@ app.get("/api/health", async (req, res) => {
       service: "MindMapr API",
       database: "turso",
       uptimeSeconds: Math.round(process.uptime()),
-      timestamp: new Date().toISOString(),
+      timestamp: toSofiaSqlString(),
       user: userInfo,
     });
   } catch (err) {
@@ -372,7 +373,7 @@ app.get("/api/health", async (req, res) => {
       ok: false,
       service: "MindMapr API",
       database: "turso",
-      timestamp: new Date().toISOString(),
+      timestamp: toSofiaSqlString(),
       error: err?.message || "database unavailable",
     });
   }
@@ -846,7 +847,7 @@ wss.on("connection", (ws) => {
         role: ws.meta.role,
         x,
         y,
-        at: new Date().toISOString(),
+        at: toSofiaSqlString(),
       };
       broadcast(room, { type: 'cursor', room, cursor: state.cursors[ws.meta.clientId] }, null);
     }
@@ -858,7 +859,7 @@ wss.on("connection", (ws) => {
       const text = String(msg.text || '').trim().slice(0, 800);
       if (!text) return;
       const state = getOrInitRoom(room);
-      const entry = { id: crypto.randomBytes(6).toString('hex'), at: new Date().toISOString(), name, text, role: ws.meta.role };
+      const entry = { id: crypto.randomBytes(6).toString('hex'), at: toSofiaSqlString(), name, text, role: ws.meta.role };
       state.chat.push(entry);
       if (state.chat.length > 50) state.chat.splice(0, state.chat.length - 50);
       broadcast(room, { type: 'chat', room, message: entry }, null);

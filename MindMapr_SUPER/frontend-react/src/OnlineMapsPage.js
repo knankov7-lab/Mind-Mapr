@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { mapsAPI } from "./api";
+import { formatSofiaDateTime, parseProjectDate } from "./time";
 
 export default function OnlineMapsPage() {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ export default function OnlineMapsPage() {
       if (sortKey === "room_id") return (r.room_id || "").toString().toLowerCase();
       if (sortKey === "name") return (r.name || "").toString().toLowerCase();
       if (sortKey === "saves_count") return Number(r.saves_count || 0);
-      if (sortKey === "last_saved_at") return r.last_saved_at ? new Date(r.last_saved_at).getTime() : 0;
+      if (sortKey === "last_saved_at") return r.last_saved_at ? (parseProjectDate(r.last_saved_at)?.getTime() || 0) : 0;
       return 0;
     };
     const list = [...filtered];
@@ -246,7 +247,7 @@ export default function OnlineMapsPage() {
                   {r.created_by_email || r.created_by_username ? (
                     <div>Автор: {r.created_by_email || r.created_by_username}</div>
                   ) : null}
-                  {r.last_saved_at ? <div>Последно: {new Date(r.last_saved_at).toLocaleString()}</div> : <div>Последно: —</div>}
+                  {r.last_saved_at ? <div>Последно: {formatSofiaDateTime(r.last_saved_at)}</div> : <div>Последно: —</div>}
                 </div>
 
                 <div className="online-actions">
