@@ -649,7 +649,39 @@ kbd{
 .shapeBtn:hover{ background: rgba(124,92,255,.12); }
 
 /* Color palette used in node context menu */
-.colorPalette{ display:flex; gap:8px; margin-top:8px; align-items:center; }
+.colorPalette{ display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap; }
+.colorSwatchBtn{
+  width:22px;
+  height:22px;
+  border-radius:7px;
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+  cursor:pointer;
+  padding:0;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.colorSwatchBtn:hover{
+  transform: translateY(-1px) scale(1.06);
+  box-shadow: 0 6px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.colorClearBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:74px;
+  height:22px;
+  padding:0 10px;
+  border-radius:7px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.04);
+  color:var(--text);
+  cursor:pointer;
+  font-size:12px;
+  font-weight:700;
+}
+.colorClearBtn:hover{
+  background: rgba(255,255,255,.1);
+}
 .colorPickerTrigger{
   display:inline-flex;
   align-items:center;

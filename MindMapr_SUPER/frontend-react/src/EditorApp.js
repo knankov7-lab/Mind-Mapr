@@ -663,6 +663,29 @@ export default function EditorApp() {
     return currentNode?.data?.color || '#7c5cff';
   })();
 
+  const quickPaletteColors = [
+    '#7c5cff',
+    '#3b82f6',
+    '#14b8a6',
+    '#22c55e',
+    '#eab308',
+    '#f97316',
+    '#ef4444',
+    '#ec4899',
+    '#64748b',
+    '#111827',
+  ];
+
+  const previewNodeColor = (color) => {
+    if (!nodeContextMenu?.nodeId) return;
+    setPreviewShape({ nodeId: nodeContextMenu.nodeId, color });
+  };
+
+  const clearNodeColorPreview = () => {
+    if (!nodeContextMenu?.nodeId) return;
+    setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: null });
+  };
+
   const deleteNodeFromMenu = () => {
     if (!nodeContextMenu?.nodeId) return closeNodeMenu();
     const id = nodeContextMenu.nodeId;
@@ -1599,12 +1622,36 @@ export default function EditorApp() {
                     <div className="shapeList colorPalette">
                       <button
                         type="button"
+                        className="colorClearBtn"
+                        onMouseEnter={clearNodeColorPreview}
+                        onMouseLeave={() => setPreviewShape(null)}
+                        onClick={() => setColorForNode(null)}
+                        title="Изчисти цвета"
+                      >
+                        Без цвят
+                      </button>
+                      {quickPaletteColors.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className="colorSwatchBtn"
+                          style={{ background: color }}
+                          onMouseEnter={() => previewNodeColor(color)}
+                          onMouseLeave={() => setPreviewShape(null)}
+                          onClick={() => setColorForNode(color)}
+                          title={color}
+                          aria-label={`Избери цвят ${color}`}
+                        />
+                      ))}
+                      <button
+                        type="button"
                         className="colorPickerTrigger"
+                        onMouseLeave={() => setPreviewShape(null)}
                         onClick={() => colorInputRef.current?.click()}
                         title="Отвори палитра за избор на цвят"
                       >
                         <span className="colorPickerSwatch" style={{ background: activeNodeColor }} />
-                        Избери цвят
+                        Още
                       </button>
                       <input
                         ref={colorInputRef}
