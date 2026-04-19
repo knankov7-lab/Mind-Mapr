@@ -561,7 +561,14 @@ export default function EditorApp() {
     if (!node.selected) {
       setNodes((prev) => (prev || []).map((n) => ({ ...n, selected: n.id === node.id })));
     }
-    setNodeContextMenu({ x, y, nodeId: node.id, renameValue: label, editing: false });
+    setNodeContextMenu({
+      x,
+      y,
+      nodeId: node.id,
+      renameValue: label,
+      editing: false,
+      pendingColor: node?.data?.color ?? null,
+    });
   };
 
   const closeNodeMenu = () => {
@@ -658,6 +665,9 @@ export default function EditorApp() {
   };
 
   const activeNodeColor = (() => {
+    if (nodeContextMenu && Object.prototype.hasOwnProperty.call(nodeContextMenu, 'pendingColor')) {
+      return nodeContextMenu.pendingColor || '#7c5cff';
+    }
     if (!nodeContextMenu?.nodeId) return '#7c5cff';
     const currentNode = (nodes || []).find((node) => node.id === nodeContextMenu.nodeId);
     return currentNode?.data?.color || '#7c5cff';
@@ -684,6 +694,22 @@ export default function EditorApp() {
   const clearNodeColorPreview = () => {
     if (!nodeContextMenu?.nodeId) return;
     setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: null });
+  };
+
+  const selectPendingNodeColor = (color) => {
+    if (!nodeContextMenu?.nodeId) return;
+    setNodeContextMenu((prev) => ({ ...(prev || {}), pendingColor: color }));
+    setPreviewShape({ nodeId: nodeContextMenu.nodeId, color });
+  };
+
+  const restorePendingNodeColorPreview = () => {
+    if (!nodeContextMenu?.nodeId) return;
+    setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: nodeContextMenu.pendingColor ?? null });
+  };
+
+  const confirmPendingNodeColor = () => {
+    if (!nodeContextMenu?.nodeId) return closeNodeMenu();
+    setColorForNode(nodeContextMenu.pendingColor ?? null);
   };
 
   const deleteNodeFromMenu = () => {
@@ -1624,8 +1650,8 @@ export default function EditorApp() {
                         type="button"
                         className="colorClearBtn"
                         onMouseEnter={clearNodeColorPreview}
-                        onMouseLeave={() => setPreviewShape(null)}
-                        onClick={() => setColorForNode(null)}
+                        onMouseLeave={restorePendingNodeColorPreview}
+                        onClick={() => selectPendingNodeColor(null)}
                         title="Изчисти цвета"
                       >
                         Без цвят
@@ -1637,8 +1663,8 @@ export default function EditorApp() {
                           className="colorSwatchBtn"
                           style={{ background: color }}
                           onMouseEnter={() => previewNodeColor(color)}
-                          onMouseLeave={() => setPreviewShape(null)}
-                          onClick={() => setColorForNode(color)}
+                          onMouseLeave={restorePendingNodeColorPreview}
+                          onClick={() => selectPendingNodeColor(color)}
                           title={color}
                           aria-label={`Избери цвят ${color}`}
                         />
@@ -1646,7 +1672,7 @@ export default function EditorApp() {
                       <button
                         type="button"
                         className="colorPickerTrigger"
-                        onMouseLeave={() => setPreviewShape(null)}
+                        onMouseLeave={restorePendingNodeColorPreview}
                         onClick={() => colorInputRef.current?.click()}
                         title="Отвори палитра за избор на цвят"
                       >
@@ -1658,9 +1684,17 @@ export default function EditorApp() {
                         className="colorPickerInput"
                         type="color"
                         value={activeNodeColor}
-                        onChange={(e) => setColorForNode(e.target.value)}
+                        onChange={(e) => selectPendingNodeColor(e.target.value)}
                         aria-label="Избери цвят за node"
                       />
+                      <button
+                        type="button"
+                        className="colorConfirmBtn"
+                        onClick={confirmPendingNodeColor}
+                        title="Потвърди избрания цвят"
+                      >
+                        Потвърди
+                      </button>
                     </div>
                   </div>
                   <div className="contextItem" onClick={deleteNodeFromMenu}>🗑 Изтрий възел</div>

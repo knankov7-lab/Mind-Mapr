@@ -695,6 +695,23 @@ kbd{
   font-weight:700;
 }
 .colorPickerTrigger:hover{ background: rgba(124,92,255,.12); }
+.colorConfirmBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:86px;
+  height:32px;
+  padding:0 12px;
+  border-radius:10px;
+  border:1px solid rgba(124,92,255,.28);
+  background: rgba(124,92,255,.16);
+  color:var(--text);
+  cursor:pointer;
+  font-weight:700;
+}
+.colorConfirmBtn:hover{
+  background: rgba(124,92,255,.26);
+}
 .colorPickerSwatch{
   width:18px;
   height:18px;
