@@ -24,9 +24,12 @@ npm start
 - Свързване на възли (edge)
 - Zoom/Pan + MiniMap
 - Realtime колаборация (WebSocket)
-- AI анализ (демо)
+- История на версиите и възстановяване
+- Коментари, чат и присъствие на участници
+- Административен панел и публични карти
+- Export/Import в JSON и PNG с QR код
 
 ## Hosting
- Turso - SQL lite 
- Render - Node js + express 
- Vercel - FE
+- Turso - libSQL база данни
+- Render - Node.js + Express + WebSocket backend
+- Vercel - React frontend
