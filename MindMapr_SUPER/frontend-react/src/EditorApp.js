@@ -418,10 +418,6 @@ export default function EditorApp() {
       // custom IdeaNode component, not on the ReactFlow wrapper div.
       const rawStyle = n.style || {};
       const cleanStyle = { ...rawStyle };
-      delete cleanStyle.background;
-      delete cleanStyle.backgroundColor;
-      delete cleanStyle.boxShadow;
-      delete cleanStyle.color;
       delete cleanStyle.width;
       delete cleanStyle.height;
       delete cleanStyle.padding;
