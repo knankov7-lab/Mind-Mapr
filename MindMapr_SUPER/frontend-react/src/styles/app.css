@@ -668,7 +668,17 @@ kbd{
   position: relative;
 }
 .customNode{ position:relative; }
-.customNode .nodeLabel{ font-weight:800; font-size:14px; letter-spacing:.3px; }
+.customNode .nodeLabel{
+  display:block;
+  max-width:100%;
+  font-weight:800;
+  font-size:14px;
+  line-height:1.18;
+  letter-spacing:.3px;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  text-align:center;
+}
 .customNode:hover{
   border-color: rgba(124,92,255,.4);
   background: linear-gradient(135deg, rgba(124,92,255,.18) 0%, rgba(38,209,167,.1) 100%);
@@ -680,22 +690,23 @@ kbd{
   background: linear-gradient(135deg, rgba(124,92,255,.2) 0%, rgba(38,209,167,.12) 100%);
   box-shadow: 0 0 2px 3px rgba(124,92,255,.24), 0 0 28px rgba(124,92,255,.28), inset 0 1px 0 rgba(255,255,255,.16);
 }
-.customNode.shape-rect{ border-radius:10px; }
-.customNode.shape-pill{ border-radius:999px; padding-left:24px; padding-right:24px; }
+.customNode.shape-rect{ border-radius:10px; min-width:96px; }
+.customNode.shape-rect .nodeLabel{ width:min(180px, 100%); }
+.customNode.shape-pill{ border-radius:999px; padding-left:26px; padding-right:26px; min-height:56px; }
+.customNode.shape-pill .nodeLabel{ width:min(200px, 100%); }
 .customNode.shape-circle{
   border-radius:999px;
-  width:112px;
-  height:112px;
-  min-width:112px;
-  padding:10px;
+  min-width:104px;
+  min-height:104px;
+  padding:14px;
   display:flex;
   align-items:center;
   justify-content:center;
   overflow:hidden;
 }
 .customNode.shape-circle .nodeLabel{
-  width:78%;
-  max-width:78%;
+  width:76%;
+  max-width:76%;
   display:block;
   font-size:12px;
   line-height:1.15;
@@ -709,10 +720,9 @@ kbd{
 }
 .customNode.shape-diamond{
   transform: rotate(45deg);
-  width:64px;
-  height:64px;
-  min-width:64px;
-  padding:0;
+  min-width:108px;
+  min-height:108px;
+  padding:10px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -721,7 +731,14 @@ kbd{
 .customNode.shape-diamond:hover{
   transform: rotate(45deg) scale(1.06);
 }
-.customNode.shape-diamond .nodeLabel{ transform: rotate(-45deg); }
+.customNode.shape-diamond .nodeLabel{
+  width:68%;
+  max-width:68%;
+  font-size:12px;
+  line-height:1.12;
+  letter-spacing:.1px;
+  transform: rotate(-45deg);
+ }
 
 .customNode.preview{
   box-shadow: 0 0 32px rgba(124,92,255,.28);

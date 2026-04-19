@@ -452,6 +452,25 @@ export default function EditorApp() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
+  const getCircleDiameterPx = (label) => {
+    const text = String(label || '').trim();
+    if (!text) return 104;
+    const words = text.split(/\s+/).filter(Boolean);
+    const longestWordLength = words.reduce((max, word) => Math.max(max, word.length), 0);
+    return Math.max(104, Math.min(184, longestWordLength * 13 + 52, 184));
+  };
+
+  const getDiamondSizePx = (label) => {
+    const text = String(label || '').trim();
+    if (!text) return 108;
+    const words = text.split(/\s+/).filter(Boolean);
+    const longestWordLength = words.reduce((max, word) => Math.max(max, word.length), 0);
+    const lineCount = Math.max(1, Math.min(words.length || 1, 3));
+    const widthDriven = longestWordLength * 16 + 34;
+    const heightDriven = lineCount * 28 + 56;
+    return Math.max(108, Math.min(188, Math.max(widthDriven, heightDriven)));
+  };
+
   const canvasRef = useRef(null);
   const [nodeContextMenu, setNodeContextMenu] = useState(null);
   const renameInputRef = useRef(null);
@@ -474,24 +493,31 @@ export default function EditorApp() {
     // .customNode styles (min-width, padding) so they don't override shape sizing.
     const shapeInline = {};
     if (displayShape === 'circle') {
-      shapeInline.width = '112px';
-      shapeInline.height = '112px';
-      shapeInline.minWidth = '112px';
-      shapeInline.padding = '10px';
+      const circleSize = getCircleDiameterPx(data?.label);
+      shapeInline.width = `${circleSize}px`;
+      shapeInline.height = `${circleSize}px`;
+      shapeInline.minWidth = `${circleSize}px`;
+      shapeInline.minHeight = `${circleSize}px`;
+      shapeInline.padding = '14px';
       shapeInline.display = 'flex';
       shapeInline.alignItems = 'center';
       shapeInline.justifyContent = 'center';
       shapeInline.borderRadius = '999px';
       shapeInline.overflow = 'hidden';
-    } else if (displayShape === 'hexagon') {
+    } else if (displayShape === 'pill') {
       shapeInline.borderRadius = '999px';
-      shapeInline.paddingLeft = '20px';
-      shapeInline.paddingRight = '20px';
+      shapeInline.paddingLeft = '26px';
+      shapeInline.paddingRight = '26px';
+      shapeInline.paddingTop = '12px';
+      shapeInline.paddingBottom = '12px';
+      shapeInline.minHeight = '56px';
     } else if (displayShape === 'diamond') {
-      shapeInline.width = '64px';
-      shapeInline.height = '64px';
-      shapeInline.minWidth = '64px';
-      shapeInline.padding = '0';
+      const diamondSize = getDiamondSizePx(data?.label);
+      shapeInline.width = `${diamondSize}px`;
+      shapeInline.height = `${diamondSize}px`;
+      shapeInline.minWidth = `${diamondSize}px`;
+      shapeInline.minHeight = `${diamondSize}px`;
+      shapeInline.padding = '10px';
       shapeInline.display = 'flex';
       shapeInline.alignItems = 'center';
       shapeInline.justifyContent = 'center';
@@ -500,6 +526,9 @@ export default function EditorApp() {
     } else {
       // rect – ensure defaults
       shapeInline.borderRadius = '8px';
+      shapeInline.minWidth = '96px';
+      shapeInline.paddingTop = '14px';
+      shapeInline.paddingBottom = '14px';
     }
 
     const finalStyle = { ...style, ...shapeInline };
@@ -605,22 +634,17 @@ export default function EditorApp() {
       const next = (prev || []).map((n) => {
         if (n.id !== nodeContextMenu.nodeId) return n;
         const existingStyle = n.style || {};
-        const newStyle = color
-          ? {
-              ...(existingStyle || {}),
-              backgroundColor: color,
-              color: '#fff',
-              boxShadow: hexToRgba(color, 0.16) ? `0 10px 30px ${hexToRgba(color, 0.16)}` : existingStyle.boxShadow,
-            }
-          : (() => {
-              const copy = { ...(existingStyle || {}) };
-              delete copy.backgroundColor;
-              delete copy.boxShadow;
-              delete copy.color;
-              return copy;
-            })();
+        const cleanStyle = { ...(existingStyle || {}) };
+        delete cleanStyle.background;
+        delete cleanStyle.backgroundColor;
+        delete cleanStyle.boxShadow;
+        delete cleanStyle.color;
 
-        return { ...n, data: { ...(n.data || {}), color }, style: newStyle };
+        return {
+          ...n,
+          data: { ...(n.data || {}), color },
+          style: Object.keys(cleanStyle).length ? cleanStyle : undefined,
+        };
       });
       scheduleBroadcast(next, edges);
       return next;
