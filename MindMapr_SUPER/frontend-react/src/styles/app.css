@@ -690,15 +690,15 @@ kbd{
   background: linear-gradient(135deg, rgba(124,92,255,.2) 0%, rgba(38,209,167,.12) 100%);
   box-shadow: 0 0 2px 3px rgba(124,92,255,.24), 0 0 28px rgba(124,92,255,.28), inset 0 1px 0 rgba(255,255,255,.16);
 }
-.customNode.shape-rect{ border-radius:10px; min-width:96px; }
+.customNode.shape-rect{ border-radius:10px; min-width:88px; }
 .customNode.shape-rect .nodeLabel{ width:min(180px, 100%); }
-.customNode.shape-pill{ border-radius:999px; padding-left:26px; padding-right:26px; min-height:56px; }
+.customNode.shape-pill{ border-radius:999px; padding-left:22px; padding-right:22px; min-height:50px; }
 .customNode.shape-pill .nodeLabel{ width:min(200px, 100%); }
 .customNode.shape-circle{
   border-radius:999px;
-  min-width:104px;
-  min-height:104px;
-  padding:14px;
+  min-width:92px;
+  min-height:92px;
+  padding:10px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -708,7 +708,7 @@ kbd{
   width:76%;
   max-width:76%;
   display:block;
-  font-size:12px;
+  font-size:11px;
   line-height:1.15;
   letter-spacing:.1px;
   white-space:normal;
@@ -720,9 +720,9 @@ kbd{
 }
 .customNode.shape-diamond{
   transform: rotate(45deg);
-  min-width:108px;
-  min-height:108px;
-  padding:10px;
+  min-width:96px;
+  min-height:96px;
+  padding:8px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -734,7 +734,7 @@ kbd{
 .customNode.shape-diamond .nodeLabel{
   width:68%;
   max-width:68%;
-  font-size:12px;
+  font-size:11px;
   line-height:1.12;
   letter-spacing:.1px;
   transform: rotate(-45deg);

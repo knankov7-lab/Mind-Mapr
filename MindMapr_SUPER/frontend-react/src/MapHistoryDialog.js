@@ -23,21 +23,21 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
 
   const getCircleDiameterPx = (label) => {
     const text = String(label || "").trim();
-    if (!text) return 104;
+    if (!text) return 92;
     const words = text.split(/\s+/).filter(Boolean);
     const longestWordLength = words.reduce((max, word) => Math.max(max, word.length), 0);
-    return Math.max(104, Math.min(184, longestWordLength * 13 + 52, 184));
+    return Math.max(92, Math.min(168, longestWordLength * 12 + 44, 168));
   };
 
   const getDiamondSizePx = (label) => {
     const text = String(label || "").trim();
-    if (!text) return 108;
+    if (!text) return 96;
     const words = text.split(/\s+/).filter(Boolean);
     const longestWordLength = words.reduce((max, word) => Math.max(max, word.length), 0);
     const lineCount = Math.max(1, Math.min(words.length || 1, 3));
-    const widthDriven = longestWordLength * 16 + 34;
-    const heightDriven = lineCount * 28 + 56;
-    return Math.max(108, Math.min(188, Math.max(widthDriven, heightDriven)));
+    const widthDriven = longestWordLength * 14 + 30;
+    const heightDriven = lineCount * 24 + 50;
+    return Math.max(96, Math.min(172, Math.max(widthDriven, heightDriven)));
   };
 
   const normalizePreviewNodes = useCallback((list) => {
@@ -86,7 +86,7 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
       shapeInline.height = `${circleSize}px`;
       shapeInline.minWidth = `${circleSize}px`;
       shapeInline.minHeight = `${circleSize}px`;
-      shapeInline.padding = "14px";
+      shapeInline.padding = "10px";
       shapeInline.display = "flex";
       shapeInline.alignItems = "center";
       shapeInline.justifyContent = "center";
@@ -94,18 +94,18 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
       shapeInline.overflow = "hidden";
     } else if (displayShape === "pill") {
       shapeInline.borderRadius = "999px";
-      shapeInline.paddingLeft = "26px";
-      shapeInline.paddingRight = "26px";
-      shapeInline.paddingTop = "12px";
-      shapeInline.paddingBottom = "12px";
-      shapeInline.minHeight = "56px";
+      shapeInline.paddingLeft = "22px";
+      shapeInline.paddingRight = "22px";
+      shapeInline.paddingTop = "10px";
+      shapeInline.paddingBottom = "10px";
+      shapeInline.minHeight = "50px";
     } else if (displayShape === "diamond") {
       const diamondSize = getDiamondSizePx(data?.label);
       shapeInline.width = `${diamondSize}px`;
       shapeInline.height = `${diamondSize}px`;
       shapeInline.minWidth = `${diamondSize}px`;
       shapeInline.minHeight = `${diamondSize}px`;
-      shapeInline.padding = "10px";
+      shapeInline.padding = "8px";
       shapeInline.display = "flex";
       shapeInline.alignItems = "center";
       shapeInline.justifyContent = "center";
@@ -113,9 +113,9 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
       shapeInline.overflow = "hidden";
     } else {
       shapeInline.borderRadius = "8px";
-      shapeInline.minWidth = "96px";
-      shapeInline.paddingTop = "14px";
-      shapeInline.paddingBottom = "14px";
+      shapeInline.minWidth = "88px";
+      shapeInline.paddingTop = "12px";
+      shapeInline.paddingBottom = "12px";
     }
 
     return (
