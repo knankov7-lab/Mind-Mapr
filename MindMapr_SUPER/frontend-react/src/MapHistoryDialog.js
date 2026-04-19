@@ -26,10 +26,6 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
     return list.map((node) => {
       const rawStyle = node.style || {};
       const cleanStyle = { ...rawStyle };
-      delete cleanStyle.background;
-      delete cleanStyle.backgroundColor;
-      delete cleanStyle.boxShadow;
-      delete cleanStyle.color;
       delete cleanStyle.width;
       delete cleanStyle.height;
       delete cleanStyle.padding;
