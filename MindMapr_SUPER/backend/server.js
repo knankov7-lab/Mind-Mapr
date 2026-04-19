@@ -21,6 +21,7 @@ const {
 const {
   initDatabase,
   run,
+  get,
   all,
   insertRoom,
   insertSave,
@@ -350,11 +351,31 @@ app.put("/api/rooms/meta", requireAuth, async (req, res) => {
 
 const roomState = new Map();
 
-app.get("/api/health", (req, res) => {
-  const userInfo = req.user
-    ? { id: req.user.id, email: req.user.email, role: req.user.role }
-    : null;
-  res.json({ ok: true, service: "MindMapr API", user: userInfo });
+app.get("/api/health", async (req, res) => {
+  try {
+    await get("SELECT 1 AS ok");
+
+    const userInfo = req.user
+      ? { id: req.user.id, email: req.user.email, role: req.user.role }
+      : null;
+
+    res.json({
+      ok: true,
+      service: "MindMapr API",
+      database: "turso",
+      uptimeSeconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+      user: userInfo,
+    });
+  } catch (err) {
+    res.status(503).json({
+      ok: false,
+      service: "MindMapr API",
+      database: "turso",
+      timestamp: new Date().toISOString(),
+      error: err?.message || "database unavailable",
+    });
+  }
 });
 
 app.get("/api/settings/public", async (_req, res) => {
