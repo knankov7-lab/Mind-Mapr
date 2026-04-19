@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { mapsAPI } from "./api";
 import ReactFlow, { Background } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -9,6 +9,101 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(null); // { id, nodes, edges }
   const previewRef = useRef(null);
+
+  const hexToRgba = (hex, alpha = 1) => {
+    if (!hex || typeof hex !== "string") return null;
+    let value = hex.replace("#", "").trim();
+    if (value.length === 3) value = value.split("").map((char) => char + char).join("");
+    if (value.length !== 6) return null;
+    const r = parseInt(value.slice(0, 2), 16);
+    const g = parseInt(value.slice(2, 4), 16);
+    const b = parseInt(value.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  const normalizePreviewNodes = useCallback((list) => {
+    if (!Array.isArray(list)) return [];
+    return list.map((node) => {
+      const rawStyle = node.style || {};
+      const cleanStyle = { ...rawStyle };
+      delete cleanStyle.width;
+      delete cleanStyle.height;
+      delete cleanStyle.padding;
+      delete cleanStyle.borderRadius;
+      delete cleanStyle.paddingLeft;
+      delete cleanStyle.paddingRight;
+
+      return {
+        ...node,
+        type: "idea",
+        style: Object.keys(cleanStyle).length ? cleanStyle : undefined,
+        data: {
+          ...(node.data || {}),
+          shape: (node.data && node.data.shape) || "rect",
+        },
+      };
+    });
+  }, []);
+
+  const HistoryIdeaNode = ({ data }) => {
+    const displayShape = (data && data.shape) || "rect";
+    const displayColor = data && data.color;
+    const style = {};
+
+    if (displayColor) {
+      style.backgroundColor = displayColor;
+      style.color = "#fff";
+      style.boxShadow = `0 10px 30px ${hexToRgba(displayColor, 0.16) || "rgba(0,0,0,.16)"}`;
+    }
+
+    const shapeInline = {};
+    if (displayShape === "circle") {
+      shapeInline.width = "56px";
+      shapeInline.height = "56px";
+      shapeInline.minWidth = "56px";
+      shapeInline.padding = "0";
+      shapeInline.display = "flex";
+      shapeInline.alignItems = "center";
+      shapeInline.justifyContent = "center";
+      shapeInline.borderRadius = "999px";
+      shapeInline.overflow = "hidden";
+    } else if (displayShape === "hexagon") {
+      shapeInline.borderRadius = "999px";
+      shapeInline.paddingLeft = "20px";
+      shapeInline.paddingRight = "20px";
+    } else if (displayShape === "diamond") {
+      shapeInline.width = "64px";
+      shapeInline.height = "64px";
+      shapeInline.minWidth = "64px";
+      shapeInline.padding = "0";
+      shapeInline.display = "flex";
+      shapeInline.alignItems = "center";
+      shapeInline.justifyContent = "center";
+      shapeInline.transform = "rotate(45deg)";
+      shapeInline.overflow = "hidden";
+    } else {
+      shapeInline.borderRadius = "8px";
+    }
+
+    return (
+      <div className={`customNode shape-${displayShape}`} style={{ ...style, ...shapeInline }}>
+        {displayColor ? (
+          <div
+            className="colorSwatch"
+            style={{ background: displayColor }}
+            title={`color: ${displayColor}`}
+          />
+        ) : null}
+        <div className="nodeLabel" style={displayShape === "diamond" ? { transform: "rotate(-45deg)" } : undefined}>
+          {data?.label}
+        </div>
+      </div>
+    );
+  };
+
+  const nodeTypes = useMemo(() => ({ idea: HistoryIdeaNode }), []);
+  const previewNodes = useMemo(() => normalizePreviewNodes(preview?.nodes || []), [normalizePreviewNodes, preview?.nodes]);
+  const previewEdges = useMemo(() => (Array.isArray(preview?.edges) ? preview.edges : []), [preview?.edges]);
 
   const refresh = useCallback(async () => {
     if (!room) return;
@@ -107,8 +202,9 @@ export default function MapHistoryDialog({ open, onClose, room, onRestore }) {
         {preview ? (
           <div className="history-preview">
             <ReactFlow
-              nodes={preview.nodes}
-              edges={preview.edges}
+              nodes={previewNodes}
+              edges={previewEdges}
+              nodeTypes={nodeTypes}
               fitView
               onInit={(inst) => { previewRef.current = inst; inst.fitView(); }}
               nodesDraggable={false}
