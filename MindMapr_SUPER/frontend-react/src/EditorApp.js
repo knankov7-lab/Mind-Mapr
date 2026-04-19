@@ -474,6 +474,7 @@ export default function EditorApp() {
   const canvasRef = useRef(null);
   const [nodeContextMenu, setNodeContextMenu] = useState(null);
   const renameInputRef = useRef(null);
+  const colorInputRef = useRef(null);
   const [previewShape, setPreviewShape] = useState(null);
 
   const IdeaNode = ({ id, data, selected }) => {
@@ -578,7 +579,9 @@ export default function EditorApp() {
     const label = String(nodeContextMenu.renameValue || "").trim();
     if (!label) return closeNodeMenu();
     setNodes((prev) => {
-      const next = (prev || []).map((n) => (n.id === nodeContextMenu.nodeId ? { ...n, data: { ...n.data, label } } : n));
+      const next = (prev || []).map((n) =>
+        n.id === nodeContextMenu.nodeId ? { ...n, data: { ...n.data, label } } : n
+      );
       scheduleBroadcast(next, edges);
       return next;
     });
@@ -653,6 +656,12 @@ export default function EditorApp() {
     try { showToast(`Цвят: ${color ? color : 'изчистен'}`); } catch {}
     closeNodeMenu();
   };
+
+  const activeNodeColor = (() => {
+    if (!nodeContextMenu?.nodeId) return '#7c5cff';
+    const currentNode = (nodes || []).find((node) => node.id === nodeContextMenu.nodeId);
+    return currentNode?.data?.color || '#7c5cff';
+  })();
 
   const deleteNodeFromMenu = () => {
     if (!nodeContextMenu?.nodeId) return closeNodeMenu();
@@ -815,18 +824,18 @@ export default function EditorApp() {
           value={commentNodeId}
           onChange={(e) => setCommentNodeId(e.target.value)}
           placeholder="nodeId (по избор)"
-          style={{borderRadius:12,border:'1px solid rgba(255,255,255,.12)',background:'rgba(255,255,255,.07)',color:'#e9eeff',padding:'10px 12px'}}
+          className="input"
         />
-        <button className="btn ghost" onClick={() => { setCommentNodeId(''); }} style={{fontSize:12}}>Изчисти</button>
-      </div>
-      <textarea
-        value={commentText}
-        onChange={(e) => setCommentText(e.target.value)}
-        placeholder="Добави коментар… (за частни карти е нужен вход)"
-        style={{width:'100%',height:80,marginTop:8,borderRadius:12,border:'1px solid rgba(255,255,255,.12)',background:'rgba(255,255,255,.07)',color:'#e9eeff',padding:10}}
-      />
-      <div style={{display:'flex',gap:8,marginTop:8}}>
-        <button className="btn primary" onClick={addComment}>Добави</button>
+        <div />
+        <textarea
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          placeholder="Добави коментар..."
+          className="input"
+          rows={3}
+          style={{gridColumn:'1 / span 2',resize:'vertical'}}
+        />
+        <button className="btn primary" onClick={addComment} style={{gridColumn:'2',justifySelf:'end'}}>Изпрати</button>
       </div>
     </div>
   );
@@ -1590,49 +1599,21 @@ export default function EditorApp() {
                     <div className="shapeList colorPalette">
                       <button
                         type="button"
-                        className="colorBtn"
-                        title="Лилаво"
-                        style={{ background: '#7c5cff' }}
-                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#7c5cff' })}
-                        onMouseLeave={() => setPreviewShape(null)}
-                        onClick={(e) => { try { console.log('[colorBtn.click] #7c5cff', e.target); } catch {} ; setColorForNode('#7c5cff'); }}
+                        className="colorPickerTrigger"
+                        onClick={() => colorInputRef.current?.click()}
+                        title="Отвори палитра за избор на цвят"
+                      >
+                        <span className="colorPickerSwatch" style={{ background: activeNodeColor }} />
+                        Избери цвят
+                      </button>
+                      <input
+                        ref={colorInputRef}
+                        className="colorPickerInput"
+                        type="color"
+                        value={activeNodeColor}
+                        onChange={(e) => setColorForNode(e.target.value)}
+                        aria-label="Избери цвят за node"
                       />
-                      <button
-                        type="button"
-                        className="colorBtn"
-                        title="Тюркоаз"
-                        style={{ background: '#26d1a7' }}
-                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#26d1a7' })}
-                        onMouseLeave={() => setPreviewShape(null)}
-                        onClick={(e) => { try { console.log('[colorBtn.click] #26d1a7', e.target); } catch {} ; setColorForNode('#26d1a7'); }}
-                      />
-                      <button
-                        type="button"
-                        className="colorBtn"
-                        title="Червено"
-                        style={{ background: '#ff6e6e' }}
-                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#ff6e6e' })}
-                        onMouseLeave={() => setPreviewShape(null)}
-                        onClick={(e) => { try { console.log('[colorBtn.click] #ff6e6e', e.target); } catch {} ; setColorForNode('#ff6e6e'); }}
-                      />
-                      <button
-                        type="button"
-                        className="colorBtn"
-                        title="Жълто"
-                        style={{ background: '#ffdd57' }}
-                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: '#ffdd57' })}
-                        onMouseLeave={() => setPreviewShape(null)}
-                        onClick={(e) => { try { console.log('[colorBtn.click] #ffdd57', e.target); } catch {} ; setColorForNode('#ffdd57'); }}
-                      />
-                      <button
-                        type="button"
-                        className="colorBtn"
-                        title="Изчисти"
-                        style={{ background: 'transparent', border: '1px dashed rgba(255,255,255,.12)', color: 'var(--text)' }}
-                        onMouseEnter={() => setPreviewShape({ nodeId: nodeContextMenu.nodeId, color: null })}
-                        onMouseLeave={() => setPreviewShape(null)}
-                        onClick={(e) => { try { console.log('[colorBtn.click] clear', e.target); } catch {} ; setColorForNode(null); }}
-                      >✖</button>
                     </div>
                   </div>
                   <div className="contextItem" onClick={deleteNodeFromMenu}>🗑 Изтрий възел</div>
