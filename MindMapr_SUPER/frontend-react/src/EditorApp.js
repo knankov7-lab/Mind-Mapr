@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 import ReactFlow, {
   Background,
   Controls,
+  Handle,
   MiniMap,
   MarkerType,
+  Position,
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
@@ -634,7 +636,17 @@ export default function EditorApp() {
         className={`customNode shape-${displayShape} ${isPreview ? "preview" : ""} ${selected ? "selected" : ""}`}
         style={finalStyle}
       >
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{ width: 8, height: 8, opacity: 0, pointerEvents: canEdit ? "auto" : "none" }}
+        />
         <div className="nodeLabel" style={displayShape === 'diamond' ? { transform: 'rotate(-45deg)' } : undefined}>{data?.label}</div>
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          style={{ width: 8, height: 8, opacity: 0, pointerEvents: canEdit ? "auto" : "none" }}
+        />
       </div>
     );
   };
