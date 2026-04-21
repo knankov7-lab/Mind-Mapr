@@ -955,28 +955,6 @@ export default function EditorApp() {
     [canEdit, nodes, scheduleBroadcast]
   );
 
-  const deleteNodeByDoubleClick = useCallback(
-    (_event, node) => {
-      if (!canEdit) return;
-      const nodeId = node?.id;
-      if (!nodeId || nodeId === "root") {
-        showToast("Главната тема не може да се изтрие.");
-        return;
-      }
-
-      const ok = window.confirm(`Да изтрия ли възела "${node?.data?.label || nodeId}"?`);
-      if (!ok) return;
-
-      const nextNodes = (nodes || []).filter((n) => n.id !== nodeId);
-      const nextEdges = (edges || []).filter((e) => e.source !== nodeId && e.target !== nodeId);
-      setNodes(nextNodes);
-      setEdges(nextEdges);
-      scheduleBroadcast(nextNodes, nextEdges);
-      showToast("Възелът е изтрит.");
-    },
-    [canEdit, nodes, edges, scheduleBroadcast, showToast]
-  );
-
   const addIdea = useCallback(() => {
     if (!canEdit) return;
     const id = nanoid(8);
@@ -1156,6 +1134,21 @@ export default function EditorApp() {
     setEdges(nextEdges);
     scheduleBroadcast(nextNodes, nextEdges);
   }, [canEdit, nodes, edges, scheduleBroadcast]);
+
+  const deleteSelectedByButton = useCallback(() => {
+    if (!canEdit) return;
+    const selectedIds = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
+    if (!selectedIds.size) return alert("Маркирай възел(и) и опитай пак.");
+    if (selectedIds.has("root")) return alert("Главната тема не може да се изтрие.");
+    const ok = window.confirm(`Да изтрия ли избраните възли (${selectedIds.size})?`);
+    if (!ok) return;
+    const nextNodes = nodes.filter((n) => !selectedIds.has(n.id));
+    const nextEdges = edges.filter((e) => !selectedIds.has(e.source) && !selectedIds.has(e.target));
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+    scheduleBroadcast(nextNodes, nextEdges);
+    showToast("Избраните възли са изтрити.");
+  }, [canEdit, nodes, edges, scheduleBroadcast, showToast]);
 
   const saveSnapshot = useCallback(async () => {
     if (!isAuthenticated) {
@@ -1653,7 +1646,7 @@ export default function EditorApp() {
                 </button>
               </div>
               <div className="row">
-                <button className="btn ghost" onClick={deleteSelected}>
+                <button className="btn ghost" onClick={deleteSelectedByButton}>
                   🗑 Изтрий <span className="small">(Del)</span>
                 </button>
                 <button
@@ -1826,7 +1819,6 @@ export default function EditorApp() {
             onInit={(inst) => { rfRef.current = inst; }}
             nodeTypes={nodeTypes}
             onNodeContextMenu={openNodeMenuAtEvent}
-            onNodeDoubleClick={deleteNodeByDoubleClick}
             onMouseMove={onCanvasMouseMove}
             nodesDraggable={canEdit}
             nodesConnectable={canEdit}
