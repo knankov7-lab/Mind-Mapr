@@ -4,6 +4,7 @@ import ReactFlow, {
   Background,
   Controls,
   MiniMap,
+  MarkerType,
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
@@ -126,6 +127,7 @@ export default function EditorApp() {
     { id: "root", position: { x: 0, y: 0 }, data: { label: "Главна тема", shape: "rect" }, type: "idea" }
   ]);
   const [edges, setEdges] = useState([]);
+  const [isMapCompletedView, setIsMapCompletedView] = useState(false);
 
   const wsRef = useRef(null);
   const suppressRemoteRef = useRef(false);
@@ -638,6 +640,56 @@ export default function EditorApp() {
   };
 
   const nodeTypes = useMemo(() => ({ idea: IdeaNode }), []);
+
+  const presentedEdges = useMemo(() => {
+    if (!Array.isArray(edges)) return [];
+    return edges.map((edge) => {
+      const base = {
+        ...edge,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 18,
+          height: 18,
+          color: isMapCompletedView ? "#26d1a7" : "#8ea0d8",
+        },
+      };
+
+      if (!isMapCompletedView) {
+        return {
+          ...base,
+          className: "edge-normal",
+          animated: true,
+          style: {
+            ...(edge?.style || {}),
+            stroke: "#8ea0d8",
+            strokeWidth: 2,
+          },
+        };
+      }
+
+      return {
+        ...base,
+        className: "edge-completed",
+        animated: false,
+        style: {
+          ...(edge?.style || {}),
+          stroke: "#26d1a7",
+          strokeWidth: 3.2,
+          strokeLinecap: "round",
+        },
+      };
+    });
+  }, [edges, isMapCompletedView]);
+
+  const minimapNodeColor = useCallback((node) => {
+    const custom = node?.data?.color || node?.style?.backgroundColor || node?.style?.background;
+    if (typeof custom === "string" && custom.trim()) return custom;
+    return node?.selected ? "#26d1a7" : "#7c5cff";
+  }, []);
+
+  const minimapNodeStrokeColor = useCallback((node) => {
+    return node?.selected ? "#dffff7" : "#c9b8ff";
+  }, []);
 
   console.log(nodes, "render nodes");
 
@@ -1548,6 +1600,15 @@ export default function EditorApp() {
                 >
                   ↩️ Нова карта
                 </button>
+                <button
+                  className={isMapCompletedView ? "btn primary" : "btn ghost"}
+                  onClick={() => {
+                    setIsMapCompletedView((v) => !v);
+                    showToast(!isMapCompletedView ? "Включен е режим: Завършена карта." : "Изключен е режим: Завършена карта.");
+                  }}
+                >
+                  ✅ Завършена карта
+                </button>
               </div>
             </div>
           </div>
@@ -1681,7 +1742,7 @@ export default function EditorApp() {
         <div className="canvasWrap" ref={canvasRef}>
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={presentedEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -1698,7 +1759,15 @@ export default function EditorApp() {
             proOptions={{ hideAttribution: true }}
           >
             <Background />
-            <MiniMap pannable zoomable />
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor={minimapNodeColor}
+              nodeStrokeColor={minimapNodeStrokeColor}
+              nodeStrokeWidth={2}
+              maskColor="rgba(6, 10, 20, 0.35)"
+              style={{ width: 220, height: 140 }}
+            />
             <Controls />
             <CursorsOverlay cursors={cursors} myClientId={myClientId} />
           </ReactFlow>

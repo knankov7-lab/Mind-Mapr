@@ -584,6 +584,17 @@ kbd{
   overflow:hidden;
 }
 
+.react-flow__edge.edge-normal .react-flow__edge-path{
+  stroke: #8ea0d8;
+  stroke-width: 2;
+}
+
+.react-flow__edge.edge-completed .react-flow__edge-path{
+  stroke: #26d1a7;
+  stroke-width: 3.2;
+  filter: drop-shadow(0 0 6px rgba(38, 209, 167, .35));
+}
+
 .cursorOverlay{
   position:absolute;
   inset:0;
