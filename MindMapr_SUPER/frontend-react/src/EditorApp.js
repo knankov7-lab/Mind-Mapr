@@ -141,6 +141,7 @@ export default function EditorApp() {
   const [chatText, setChatText] = useState('');
 
   const [comments, setComments] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
 
   const [myClientId, setMyClientId] = useState(null);
   const [myRole, setMyRole] = useState('guest');
@@ -187,6 +188,12 @@ export default function EditorApp() {
   }
   const [commentText, setCommentText] = useState('');
   const [commentNodeId, setCommentNodeId] = useState('');
+
+  const sendJoin = useCallback((nextRoom = room) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== 1) return;
+    ws.send(JSON.stringify({ type: "join", room: nextRoom, name, token: token || '' }));
+  }, [room, name, token]);
 
   useEffect(() => {
     localStorage.setItem("mm_name", name);
@@ -284,12 +291,16 @@ export default function EditorApp() {
 
   // WebSocket connect & room join
   useEffect(() => {
+    setJoinRequests([]);
+  }, [room]);
+
+  useEffect(() => {
     const ws = new WebSocket(WS);
     wsRef.current = ws;
 
     ws.onopen = () => {
       setStatus("online");
-      ws.send(JSON.stringify({ type: "join", room, name, token: token || '' }));
+      sendJoin(room);
       showToast("Свързан(а) за екипна работа. Сподели линка с room параметъра.");
     };
     ws.onclose = () => setStatus("offline");
@@ -335,6 +346,24 @@ export default function EditorApp() {
           setCanEdit(false);
           showToast(msg.error || 'Нямаш достъп до стаята.');
         }
+        if (msg.type === 'join-request' && msg.request) {
+          const req = msg.request;
+          if (String(req.room || '') !== String(room || '')) return;
+          setJoinRequests((prev) => {
+            if (prev.some((item) => item.requestId === req.requestId)) return prev;
+            return [...prev, req];
+          });
+          showToast(`Нова заявка за достъп от ${req.requesterName || req.requesterEmail || 'потребител'}.`);
+        }
+        if (msg.type === 'join-request-pending' && msg.room === room) {
+          showToast(msg.message || 'Изчаква се одобрение от собственика на стаята.');
+        }
+        if (msg.type === 'join-request-result' && msg.room === room) {
+          showToast(msg.message || (msg.approved ? 'Заявката е одобрена.' : 'Заявката е отказана.'));
+          if (msg.approved) {
+            setTimeout(() => sendJoin(room), 120);
+          }
+        }
       } catch {}
     };
 
@@ -343,7 +372,22 @@ export default function EditorApp() {
         ws.close();
       } catch {}
     };
-  }, [room, name, token, showToast]);
+  }, [room, sendJoin, showToast]);
+
+  const decideJoinRequest = useCallback((requestId, action, role = 'viewer') => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== 1) {
+      showToast('Няма връзка със сървъра.');
+      return;
+    }
+    ws.send(JSON.stringify({
+      type: 'join-request-decision',
+      requestId,
+      action,
+      role,
+    }));
+    setJoinRequests((prev) => prev.filter((item) => item.requestId !== requestId));
+  }, [showToast]);
 
   const onCanvasMouseMove = useCallback(
     (ev) => {
@@ -1454,6 +1498,32 @@ export default function EditorApp() {
               </div>
             )}
           </div>
+
+          {isAuthenticated && (myRole === 'owner' || myRole === 'admin') && joinRequests.length > 0 ? (
+            <div className="section">
+              <h3>Заявки за достъп</h3>
+              <div className="col">
+                {joinRequests.map((req) => (
+                  <div key={req.requestId} className="small" style={{ border: '1px solid #2b3550', borderRadius: 10, padding: 10 }}>
+                    <div><b>{req.requesterName || req.requesterUsername || req.requesterEmail || 'Потребител'}</b></div>
+                    <div style={{ opacity: 0.85 }}>иска достъп до стаята</div>
+                    <div style={{ marginBottom: 8 }}><b>{req.room}</b></div>
+                    <div className="row" style={{ flexWrap: 'wrap' }}>
+                      <button className="btn primary" onClick={() => decideJoinRequest(req.requestId, 'approve', 'editor')}>
+                        Одобри като Editor
+                      </button>
+                      <button className="btn ghost" onClick={() => decideJoinRequest(req.requestId, 'approve', 'viewer')}>
+                        Одобри като Viewer
+                      </button>
+                      <button className="btn warn" onClick={() => decideJoinRequest(req.requestId, 'deny')}>
+                        Откажи
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="section">
             <h3>Инструменти</h3>

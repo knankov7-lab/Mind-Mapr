@@ -183,6 +183,18 @@ async function initDatabase() {
       FOREIGN KEY (created_by) REFERENCES users(id)
     );
     CREATE INDEX IF NOT EXISTS idx_invites_room ON invites(room_id);
+
+    CREATE TABLE IF NOT EXISTS room_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      role_in_room TEXT NOT NULL DEFAULT 'viewer',
+      approved_by INTEGER,
+      approved_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(room_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_room_members_room_user ON room_members(room_id, user_id);
   `);
 
   // Lightweight migrations
@@ -631,6 +643,31 @@ async function markInviteUsed(token) {
   return run('UPDATE invites SET used_at = ? WHERE token = ?', [toSofiaSqlString(), String(token)]);
 }
 
+async function getRoomMember(roomId, userId) {
+  return get(
+    'SELECT room_id, user_id, role_in_room, approved_by, approved_at, created_at FROM room_members WHERE room_id = ? AND user_id = ?',
+    [String(roomId), Number(userId)]
+  );
+}
+
+async function upsertRoomMemberRole(roomId, userId, roleInRoom = 'viewer', approvedBy = null) {
+  const role = String(roleInRoom || 'viewer').toLowerCase();
+  const safeRole = ['owner', 'editor', 'viewer'].includes(role) ? role : 'viewer';
+  const approver = approvedBy == null ? null : Number(approvedBy);
+  return run(
+    `
+      INSERT INTO room_members (room_id, user_id, role_in_room, approved_by, approved_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(room_id, user_id)
+      DO UPDATE SET
+        role_in_room = excluded.role_in_room,
+        approved_by = excluded.approved_by,
+        approved_at = excluded.approved_at
+    `,
+    [String(roomId), Number(userId), safeRole, approver, toSofiaSqlString(), toSofiaSqlString()]
+  );
+}
+
 module.exports = {
   initDatabase,
   // low-level helpers (used by admin routes)
@@ -694,4 +731,7 @@ module.exports = {
   getInviteByToken,
   deleteInviteByToken,
   markInviteUsed,
+  // Room members
+  getRoomMember,
+  upsertRoomMemberRole,
 };
