@@ -835,6 +835,23 @@ kbd{
 .customNode.preview.shape-pill{ transform: scale(1.07); }
 .customNode.preview.shape-rect{ transform: scale(1.06); }
 
+.customNode .react-flow__handle{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(233, 238, 255, .35);
+  background: rgba(124, 92, 255, .55);
+  opacity: .15;
+  transition: opacity .15s ease, transform .15s ease, background .15s ease;
+}
+
+.customNode:hover .react-flow__handle,
+.customNode.selected .react-flow__handle{
+  opacity: .95;
+  background: rgba(38, 209, 167, .95);
+  transform: scale(1.08);
+}
+
 /* Inline rename input inside context menu */
 .contextRenameInput{
   width:100%;

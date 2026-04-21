@@ -130,6 +130,7 @@ export default function EditorApp() {
   ]);
   const [edges, setEdges] = useState([]);
   const [isMapCompletedView, setIsMapCompletedView] = useState(false);
+  const [autoConnectToRoot, setAutoConnectToRoot] = useState(false);
 
   const wsRef = useRef(null);
   const suppressRemoteRef = useRef(false);
@@ -939,7 +940,13 @@ export default function EditorApp() {
   const onConnect = useCallback(
     (connection) => {
       if (!canEdit) return;
+      if (!connection?.source || !connection?.target) return;
+      if (connection.source === connection.target) return;
       setEdges((eds) => {
+        const alreadyLinked = (eds || []).some(
+          (edge) => edge.source === connection.source && edge.target === connection.target
+        );
+        if (alreadyLinked) return eds;
         const next = addEdge({ ...connection, animated: true }, eds);
         scheduleBroadcast(nodes, next);
         return next;
@@ -961,15 +968,38 @@ export default function EditorApp() {
       type: "idea"
     };
 
-    const newEdge = { id: `e-root-${id}`, source: "root", target: id, animated: true };
-
     const nextNodes = [...nodes, newNode];
-    const nextEdges = [...edges, newEdge];
+    const nextEdges = autoConnectToRoot
+      ? [...edges, { id: `e-root-${id}`, source: "root", target: id, animated: true }]
+      : [...edges];
 
     setNodes(nextNodes);
     setEdges(nextEdges);
     scheduleBroadcast(nextNodes, nextEdges);
-  }, [canEdit, nodes, edges, scheduleBroadcast]);
+  }, [canEdit, nodes, edges, autoConnectToRoot, scheduleBroadcast]);
+
+  const connectSelectedNodes = useCallback(() => {
+    if (!canEdit) return;
+    const selected = (nodes || []).filter((n) => n.selected);
+    if (selected.length !== 2) {
+      showToast("Маркирай точно 2 възела, за да ги свържеш.");
+      return;
+    }
+
+    const [sourceNode, targetNode] = selected;
+    if (!sourceNode?.id || !targetNode?.id || sourceNode.id === targetNode.id) return;
+
+    const exists = (edges || []).some((e) => e.source === sourceNode.id && e.target === targetNode.id);
+    if (exists) {
+      showToast("Тези възли вече са свързани.");
+      return;
+    }
+
+    const nextEdges = addEdge({ source: sourceNode.id, target: targetNode.id, animated: true }, edges || []);
+    setEdges(nextEdges);
+    scheduleBroadcast(nodes, nextEdges);
+    showToast(`Свързах "${sourceNode.data?.label || sourceNode.id}" → "${targetNode.data?.label || targetNode.id}".`);
+  }, [canEdit, nodes, edges, scheduleBroadcast, showToast]);
 
   const renderChat = () => (
     <div style={{marginTop:10,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.10)',borderRadius:14,padding:12}}>
@@ -1621,6 +1651,19 @@ export default function EditorApp() {
                 >
                   ✅ Завършена карта
                 </button>
+              </div>
+              <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+                <button className="btn ghost" onClick={connectSelectedNodes}>
+                  🔗 Свържи избраните 2 възела
+                </button>
+                <label className="small" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={autoConnectToRoot}
+                    onChange={(e) => setAutoConnectToRoot(e.target.checked)}
+                  />
+                  Авто връзка към главната тема
+                </label>
               </div>
             </div>
           </div>
