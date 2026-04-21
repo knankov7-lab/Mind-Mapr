@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       setToken(newToken);
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData, token: newToken };
     } catch (error) {
       return { success: false, error: error.response?.data?.error || 'Login failed' };
     }
@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       setToken(newToken);
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData, token: newToken };
     } catch (error) {
       return { success: false, error: error.response?.data?.error || 'Registration failed' };
     }

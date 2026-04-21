@@ -46,6 +46,27 @@ function setRoomInUrl(room) {
   window.history.replaceState({}, "", u.toString());
 }
 
+function createStarterNodes() {
+  return [
+    { id: "root", position: { x: 0, y: 0 }, data: { label: "Главна тема", shape: "rect" }, type: "idea" }
+  ];
+}
+
+function sanitizeRoomSegment(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24);
+  return normalized || "project";
+}
+
+function buildPersonalRoomId(userData) {
+  const base = sanitizeRoomSegment(userData?.username || userData?.email?.split("@")[0] || "project");
+  return `${base}-${Date.now().toString(36)}-${nanoid(6).toLowerCase()}`;
+}
+
 export default function EditorApp() {
   const [showMapList, setShowMapList] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -186,6 +207,26 @@ export default function EditorApp() {
     window.clearTimeout(pendingTimerRef.current);
     pendingTimerRef.current = window.setTimeout(() => setToast(""), 2500);
   }, []);
+
+  const resetEditorForRoom = useCallback((nextRoom, message) => {
+    const starter = normalizeNodes(createStarterNodes());
+    setRoom(nextRoom);
+    setNodes(starter);
+    setEdges([]);
+    setMeta({ name: "", description: "", tags: "" });
+    setParticipants([]);
+    setChatMessages([]);
+    setComments([]);
+    setCursors({});
+    setShowMapList(false);
+    setShowHistory(false);
+    showToast(message || "Отворена е нова празна карта.");
+  }, [showToast]);
+
+  const startPersonalProject = useCallback((userData) => {
+    const nextRoom = buildPersonalRoomId(userData || user);
+    resetEditorForRoom(nextRoom, "Създаден е личен проект. Натисни Запази, за да го запишеш.");
+  }, [resetEditorForRoom, user]);
 
   const loadMeta = useCallback(async () => {
     if (!room) return;
@@ -1265,9 +1306,10 @@ export default function EditorApp() {
       setAuthError(result.error || "Registration failed");
       return;
     }
-    showToast("Регистрацията е успешна.");
+    startPersonalProject(result.user || { email: authForm.email, username: authForm.username });
+    showToast("Регистрацията е успешна. Създадох ти личен проект.");
     setAuthForm((prev) => ({ ...prev, password: "" }));
-  }, [authForm.email, authForm.password, authForm.username, register, showToast]);
+  }, [authForm.email, authForm.password, authForm.username, register, showToast, startPersonalProject]);
 
   // AI features removed: runAI and generateMindMap disabled
 
@@ -1357,6 +1399,11 @@ export default function EditorApp() {
                 Отвори линка на друг компютър/браузър със същия <b>room</b> и ще редактирате заедно в
                 реално време.
               </div>
+              {isAuthenticated ? (
+                <button className="btn primary" onClick={() => startPersonalProject(user)}>
+                  🆕 Мой проект
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -1367,6 +1414,9 @@ export default function EditorApp() {
                 <div className="small">
                   Влезнал(а) като <b>{user?.email}</b> ({user?.role})
                 </div>
+                <button className="btn primary" onClick={() => startPersonalProject(user)}>
+                  🆕 Нов личен проект
+                </button>
                 <button className="btn ghost" onClick={logout}>
                   Изход
                 </button>
@@ -1423,17 +1473,7 @@ export default function EditorApp() {
                 <button
                   className="btn ghost"
                   onClick={() => {
-                    const starter = [
-                      {
-                        id: "root",
-                        position: { x: 0, y: 0 },
-                        data: { label: "Главна тема", shape: "rect" },
-                        type: "idea"
-                      }
-                    ];
-                    setNodes(normalizeNodes(starter));
-                    setEdges([]);
-                    scheduleBroadcast(normalizeNodes(starter), []);
+                    resetEditorForRoom(room, "Отворена е нова празна карта в текущата стая.");
                   }}
                 >
                   ↩️ Нова карта
