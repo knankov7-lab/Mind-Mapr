@@ -1126,10 +1126,15 @@ export default function EditorApp() {
   const deleteSelected = useCallback(() => {
     if (!canEdit) return;
     const selectedIds = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
-    if (!selectedIds.size) return alert("Маркирай възел(и) и опитай пак.");
+    const selectedEdgeIds = new Set(edges.filter((e) => e.selected).map((e) => e.id));
+    if (!selectedIds.size && !selectedEdgeIds.size) return alert("Маркирай възел(и) или връзка и опитай пак.");
     if (selectedIds.has("root")) return alert("Главната тема не може да се изтрие.");
     const nextNodes = nodes.filter((n) => !selectedIds.has(n.id));
-    const nextEdges = edges.filter((e) => !selectedIds.has(e.source) && !selectedIds.has(e.target));
+    const nextEdges = edges.filter((e) => {
+      if (selectedEdgeIds.has(e.id)) return false;
+      if (selectedIds.has(e.source) || selectedIds.has(e.target)) return false;
+      return true;
+    });
     setNodes(nextNodes);
     setEdges(nextEdges);
     scheduleBroadcast(nextNodes, nextEdges);
@@ -1149,6 +1154,21 @@ export default function EditorApp() {
     scheduleBroadcast(nextNodes, nextEdges);
     showToast("Избраните възли са изтрити.");
   }, [canEdit, nodes, edges, scheduleBroadcast, showToast]);
+
+  const deleteSelectedEdgesByButton = useCallback(() => {
+    if (!canEdit) return;
+    const selectedEdgeIds = new Set(edges.filter((e) => e.selected).map((e) => e.id));
+    if (!selectedEdgeIds.size) {
+      showToast("Маркирай връзка и опитай пак.");
+      return;
+    }
+    const ok = window.confirm(`Да изтрия ли избраните връзки (${selectedEdgeIds.size})?`);
+    if (!ok) return;
+    const nextEdges = edges.filter((e) => !selectedEdgeIds.has(e.id));
+    setEdges(nextEdges);
+    scheduleBroadcast(nodes, nextEdges);
+    showToast("Избраните връзки са изтрити.");
+  }, [canEdit, edges, nodes, scheduleBroadcast, showToast]);
 
   const saveSnapshot = useCallback(async () => {
     if (!isAuthenticated) {
@@ -1648,6 +1668,9 @@ export default function EditorApp() {
               <div className="row">
                 <button className="btn ghost" onClick={deleteSelectedByButton}>
                   🗑 Изтрий <span className="small">(Del)</span>
+                </button>
+                <button className="btn ghost" onClick={deleteSelectedEdgesByButton}>
+                  ✂️ Изтрий връзка
                 </button>
                 <button
                   className="btn ghost"
