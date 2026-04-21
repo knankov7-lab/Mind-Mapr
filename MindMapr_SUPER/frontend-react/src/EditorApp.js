@@ -657,37 +657,39 @@ export default function EditorApp() {
   const presentedEdges = useMemo(() => {
     if (!Array.isArray(edges)) return [];
     return edges.map((edge) => {
+      const isSelected = !!edge?.selected;
+      const strokeColor = isSelected ? "#ffd166" : (isMapCompletedView ? "#26d1a7" : "#8ea0d8");
+      const strokeWidth = isSelected ? 4.5 : (isMapCompletedView ? 3.2 : 2);
       const base = {
         ...edge,
+        className: `${isMapCompletedView ? "edge-completed" : "edge-normal"}${isSelected ? " edge-selected" : ""}`,
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 18,
           height: 18,
-          color: isMapCompletedView ? "#26d1a7" : "#8ea0d8",
+          color: strokeColor,
         },
       };
 
       if (!isMapCompletedView) {
         return {
           ...base,
-          className: "edge-normal",
           animated: true,
           style: {
             ...(edge?.style || {}),
-            stroke: "#8ea0d8",
-            strokeWidth: 2,
+            stroke: strokeColor,
+            strokeWidth,
           },
         };
       }
 
       return {
         ...base,
-        className: "edge-completed",
         animated: false,
         style: {
           ...(edge?.style || {}),
-          stroke: "#26d1a7",
-          strokeWidth: 3.2,
+          stroke: strokeColor,
+          strokeWidth,
           strokeLinecap: "round",
         },
       };

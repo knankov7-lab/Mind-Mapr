@@ -595,6 +595,17 @@ kbd{
   filter: drop-shadow(0 0 6px rgba(38, 209, 167, .35));
 }
 
+.react-flow__edge.edge-selected .react-flow__edge-path{
+  stroke: #ffd166;
+  stroke-width: 4.5;
+  filter: drop-shadow(0 0 8px rgba(255, 209, 102, .55));
+}
+
+.react-flow__edge.edge-selected .react-flow__edge-text,
+.react-flow__edge.edge-selected .react-flow__edgeupdater{
+  opacity: 1;
+}
+
 .cursorOverlay{
   position:absolute;
   inset:0;
