@@ -186,7 +186,7 @@ async function canAccessRoom(req, roomId, { allowPublicRead = false } = {}) {
 
 async function accessForRoomAndUser(roomId, user, { allowPublicRead = false } = {}) {
   const rm = await getRoomById(roomId);
-  if (!rm) return { ok: true, room: null, role: user ? 'user' : 'guest', canWrite: true, canRead: true };
+  if (!rm) return { ok: false, status: 404, error: 'room not found', room: null };
 
   const isPublic = Number(rm.public || 0) === 1;
   const isAdmin = !!user && String(user.role || '').toLowerCase() === 'admin';
@@ -748,6 +748,18 @@ wss.on("connection", (ws) => {
       const claimedUser = token ? verifyToken(token) : null;
       if (claimedUser) ws.meta.user = claimedUser;
 
+      // First authenticated user to open a new room becomes its owner.
+      if (claimedUser) {
+        try {
+          const existingRoom = await getRoomById(nextRoom);
+          if (!existingRoom) {
+            await insertRoom(nextRoom, null, claimedUser.id);
+          }
+        } catch {
+          // ignore room bootstrap errors and continue with access checks
+        }
+      }
+
       const inviteToken = typeof msg.invite === 'string' ? msg.invite.trim() : '';
       let invite = null;
       if (inviteToken) {
@@ -789,7 +801,7 @@ wss.on("connection", (ws) => {
               requesterUserId: Number(claimedUser.id),
               requesterEmail: claimedUser.email || null,
               requesterUsername: claimedUser.username || null,
-              requesterName: ws.meta.name || claimedUser.username || claimedUser.email || 'user',
+              requesterName: String(msg.name || claimedUser.username || claimedUser.email || 'user').slice(0, 40),
               requestedAt: toSofiaSqlString(),
             };
 
