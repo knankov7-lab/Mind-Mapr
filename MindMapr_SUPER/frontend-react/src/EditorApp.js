@@ -1804,7 +1804,6 @@ export default function EditorApp() {
             onInit={(inst) => { rfRef.current = inst; }}
             nodeTypes={nodeTypes}
             onNodeContextMenu={openNodeMenuAtEvent}
-            onNodeClick={openNodeMenuAtEvent}
             onMouseMove={onCanvasMouseMove}
             nodesDraggable={canEdit}
             nodesConnectable={canEdit}
