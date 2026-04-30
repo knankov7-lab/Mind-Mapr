@@ -53,13 +53,52 @@ export default function AdminPanel({ onClose }) {
   const roleOptions = useMemo(() => {
     const base = [
       { value: 'user', label: 'user' },
-      { value: 'ops-admin', label: 'ops-admin' },
+      { value: 'ops-admin', label: 'ops admin' },
     ];
     if (can('users.manage')) {
-      base.push({ value: 'super-admin', label: 'super-admin' });
+      base.push({ value: 'super-admin', label: 'super admin' });
+      base.push({ value: 'admin', label: 'admin (legacy)' });
     }
     return base;
   }, [can]);
+
+  const roleLabel = useCallback((roleValue) => {
+    const role = String(roleValue || 'user').toLowerCase();
+    if (role === 'super-admin') return 'super admin';
+    if (role === 'ops-admin') return 'ops admin';
+    if (role === 'admin') return 'admin (legacy)';
+    return role;
+  }, []);
+
+  const roleBadgeStyle = useCallback((roleValue) => {
+    const role = String(roleValue || 'user').toLowerCase();
+    if (role === 'super-admin') {
+      return {
+        background: 'rgba(255, 90, 90, .18)',
+        border: '1px solid rgba(255, 90, 90, .45)',
+        color: '#ffdede',
+      };
+    }
+    if (role === 'ops-admin') {
+      return {
+        background: 'rgba(255, 196, 64, .18)',
+        border: '1px solid rgba(255, 196, 64, .45)',
+        color: '#fff2cf',
+      };
+    }
+    if (role === 'admin') {
+      return {
+        background: 'rgba(139, 102, 255, .18)',
+        border: '1px solid rgba(139, 102, 255, .45)',
+        color: '#ece3ff',
+      };
+    }
+    return {
+      background: 'rgba(38, 209, 167, .14)',
+      border: '1px solid rgba(38, 209, 167, .35)',
+      color: '#d9fff6',
+    };
+  }, []);
 
 
   useEffect(() => { fetchAll(); }, []);
@@ -198,7 +237,24 @@ export default function AdminPanel({ onClose }) {
                   <td>{u.id}</td>
                   <td>{u.email}</td>
                   <td>{u.username}</td>
-                  <td>{u.role}</td>
+                  <td>
+                    <span
+                      style={{
+                        ...roleBadgeStyle(u.role),
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '3px 10px',
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        letterSpacing: '.2px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {roleLabel(u.role)}
+                    </span>
+                  </td>
                   {can('users.manage') ? (
                     <td>
                       {Number(user?.id) === Number(u.id) ? (
@@ -231,6 +287,9 @@ export default function AdminPanel({ onClose }) {
                 </tr>
               ))}</tbody>
             </table>
+          </div>
+          <div style={{marginTop:8,fontSize:12,opacity:.85}}>
+            Роли: <b>user</b>, <b>ops admin</b>, <b>super admin</b> и <b>admin (legacy)</b>.
           </div>
           {can('users.manage') ? <div style={{marginTop:8,fontSize:12,opacity:.85}}>Промяната на роля влиза в сила веднага. Засегнатият потребител може да трябва да влезе отново.</div> : null}
         </section>
@@ -359,7 +418,24 @@ export default function AdminPanel({ onClose }) {
                       </td>
                       <td style={{padding:'10px 10px',whiteSpace:'nowrap'}}>{row.action}</td>
                       <td style={{padding:'10px 10px',whiteSpace:'nowrap'}}>{targetLabel}</td>
-                      <td style={{padding:'10px 10px',whiteSpace:'nowrap'}}>{nextRole}</td>
+                      <td style={{padding:'10px 10px',whiteSpace:'nowrap'}}>
+                        <span
+                          style={{
+                            ...roleBadgeStyle(nextRole),
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '2px 8px',
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: '.2px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {roleLabel(nextRole)}
+                        </span>
+                      </td>
                       <td style={{padding:'10px 10px',whiteSpace:'nowrap',opacity:.9}}>{context}</td>
                     </tr>
                   );
