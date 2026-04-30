@@ -486,6 +486,32 @@ kbd{
   flex-shrink:0;
 }
 
+.roomGuestMeta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.roomGuestActions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  justify-content:flex-end;
+}
+
+.roomGuestActionBtn{
+  width:auto;
+  min-width:72px;
+  padding:6px 10px;
+  border-radius:10px;
+  font-size:12px;
+}
+
+.roomGuestActionBtn:disabled{
+  opacity:.52;
+  cursor:not-allowed;
+}
+
 @media (max-width: 700px){
   .tutorialCard{
     width: min(96vw, 560px);
@@ -510,6 +536,16 @@ kbd{
 
   .tutorialActions{
     justify-content: space-between;
+  }
+
+  .roomGuestItem{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .roomGuestMeta{
+    width:100%;
+    justify-content:space-between;
   }
 }
 

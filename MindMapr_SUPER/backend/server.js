@@ -61,7 +61,9 @@ const {
   // Room members
   getRoomMember,
   upsertRoomMemberRole,
+  deleteRoomMember,
 
+  getUserById,
   getUserByEmail,
   insertUser,
   listUsers,
@@ -773,6 +775,21 @@ function isUserOnline(userId) {
   );
 }
 
+function getOpenClientsByUserAndRoom(userId, roomId) {
+  return Array.from(wss.clients).filter((client) => {
+    if (client.readyState !== WebSocket.OPEN) return false;
+    if (Number(client.meta?.user?.id) !== Number(userId)) return false;
+    if (String(client.meta?.room || '') !== String(roomId || '')) return false;
+    return true;
+  });
+}
+
+async function isProtectedRoomUser(roomInfo, userId) {
+  const target = await getUserById(Number(userId));
+  if (!target) return false;
+  return canUserApproveRoomRequests(roomInfo, target);
+}
+
 function findPendingJoinRequest(roomId, userId) {
   for (const req of joinRequests.values()) {
     if (String(req.roomId) === String(roomId) && Number(req.requesterUserId) === Number(userId)) {
@@ -1030,6 +1047,125 @@ wss.on("connection", (ws) => {
           ws.send(JSON.stringify({ type: 'toast', room: request.roomId, message: 'Заявката е отказана.' }));
         } catch {}
       }
+      return;
+    }
+
+    if (msg.type === 'room-member-manage') {
+      const roomId = String(msg.room || ws.meta.room || '').trim();
+      const action = String(msg.action || '').toLowerCase();
+      const targetUserId = Number(msg.userId);
+      const requestedRole = String(msg.role || 'viewer').toLowerCase();
+      const safeRole = requestedRole === 'editor' ? 'editor' : 'viewer';
+
+      if (!roomId || !Number.isFinite(targetUserId)) return;
+      if (!['set-role', 'remove'].includes(action)) return;
+      if (!ws.meta.user) return;
+
+      const roomInfo = await getRoomById(roomId);
+      if (!roomInfo) return;
+
+      const canManage = await canUserApproveRoomRequests(roomInfo, ws.meta.user);
+      if (!canManage) {
+        try {
+          ws.send(JSON.stringify({ type: 'error', room: roomId, error: 'forbidden' }));
+        } catch {}
+        return;
+      }
+
+      if (Number(ws.meta.user.id) === targetUserId) {
+        try {
+          ws.send(JSON.stringify({ type: 'toast', room: roomId, message: 'Не можеш да променяш собствената си роля оттук.' }));
+        } catch {}
+        return;
+      }
+
+      const targetIsProtected = await isProtectedRoomUser(roomInfo, targetUserId);
+      if (targetIsProtected) {
+        try {
+          ws.send(JSON.stringify({ type: 'toast', room: roomId, message: 'Този потребител е owner/admin и не може да бъде променян от този панел.' }));
+        } catch {}
+        return;
+      }
+
+      if (action === 'set-role') {
+        await upsertRoomMemberRole(roomId, targetUserId, safeRole, ws.meta.user.id);
+
+        const state = getOrInitRoom(roomId);
+        if (Array.isArray(state.participants)) {
+          state.participants = state.participants.map((p) => {
+            if (Number(p.userId) !== targetUserId) return p;
+            return { ...p, role: safeRole };
+          });
+        }
+
+        const targetClients = getOpenClientsByUserAndRoom(targetUserId, roomId);
+        for (const client of targetClients) {
+          client.meta.role = safeRole;
+          client.meta.canWrite = safeRole === 'owner' || safeRole === 'editor';
+          try {
+            client.send(JSON.stringify({
+              type: 'hello',
+              room: roomId,
+              clientId: client.meta.clientId,
+              role: client.meta.role,
+              canWrite: client.meta.canWrite,
+            }));
+            client.send(JSON.stringify({ type: 'toast', room: roomId, message: `Ролята ти е променена на ${safeRole}.` }));
+          } catch {}
+        }
+
+        broadcast(roomId, { type: 'presence', room: roomId, participants: state.participants }, null);
+        try {
+          ws.send(JSON.stringify({ type: 'toast', room: roomId, message: `Ролята е променена на ${safeRole}.` }));
+        } catch {}
+        return;
+      }
+
+      await deleteRoomMember(roomId, targetUserId);
+
+      const targetClients = getOpenClientsByUserAndRoom(targetUserId, roomId);
+      const nextRoleByClientId = new Map();
+      for (const client of targetClients) {
+        const nextAccess = await accessForRoomAndUser(roomId, client.meta.user, { allowPublicRead: true });
+        if (!nextAccess.ok) {
+          try {
+            client.send(JSON.stringify({ type: 'error', room: roomId, error: 'forbidden' }));
+            client.send(JSON.stringify({ type: 'toast', room: roomId, message: 'Достъпът ти до стаята е премахнат.' }));
+          } catch {}
+          try { client.close(); } catch {}
+          continue;
+        }
+
+        client.meta.role = nextAccess.role;
+        client.meta.canWrite = !!nextAccess.canWrite;
+        client.meta.canRead = !!nextAccess.canRead;
+        nextRoleByClientId.set(client.meta.clientId, client.meta.role);
+        try {
+          client.send(JSON.stringify({
+            type: 'hello',
+            room: roomId,
+            clientId: client.meta.clientId,
+            role: client.meta.role,
+            canWrite: client.meta.canWrite,
+          }));
+          client.send(JSON.stringify({ type: 'toast', room: roomId, message: 'Достъпът ти е обновен.' }));
+        } catch {}
+      }
+
+      const state = roomState.get(roomId);
+      if (state?.participants) {
+        state.participants = state.participants.map((p) => {
+          if (Number(p.userId) !== targetUserId) return p;
+          const liveRole = nextRoleByClientId.get(p.clientId);
+          if (!liveRole) return p;
+          return { ...p, role: liveRole };
+        });
+        broadcast(roomId, { type: 'presence', room: roomId, participants: state.participants }, null);
+      }
+
+      try {
+        ws.send(JSON.stringify({ type: 'toast', room: roomId, message: 'Потребителят е премахнат от room members.' }));
+      } catch {}
       return;
     }
 

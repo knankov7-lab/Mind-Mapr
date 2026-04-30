@@ -543,6 +543,36 @@ export default function EditorApp() {
     setJoinRequests((prev) => prev.filter((item) => item.requestId !== requestId));
   }, [showToast]);
 
+  const canManageGuests = isAuthenticated && (myRole === 'owner' || myRole === 'admin');
+
+  const manageRoomGuest = useCallback((guest, action, role = 'viewer') => {
+    if (!canManageGuests) return;
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== 1) {
+      showToast('Няма връзка със сървъра.');
+      return;
+    }
+
+    const targetUserId = Number(guest?.userId);
+    if (!Number.isFinite(targetUserId)) {
+      showToast('Този участник не може да се управлява.');
+      return;
+    }
+
+    if (action === 'remove') {
+      const ok = window.confirm(`Да премахна ли ${guest?.name || 'потребителя'} от тази стая?`);
+      if (!ok) return;
+    }
+
+    ws.send(JSON.stringify({
+      type: 'room-member-manage',
+      room,
+      action: action === 'remove' ? 'remove' : 'set-role',
+      userId: targetUserId,
+      role: role === 'editor' ? 'editor' : 'viewer',
+    }));
+  }, [canManageGuests, room, showToast]);
+
   const onCanvasMouseMove = useCallback(
     (ev) => {
       const ws = wsRef.current;
@@ -1647,11 +1677,16 @@ export default function EditorApp() {
       .filter((p) => p && p.clientId)
       .map((p) => {
         const role = String(p.role || 'guest').toLowerCase();
+        const userId = Number.isFinite(Number(p.userId)) ? Number(p.userId) : null;
+        const isMe = myClientId && p.clientId === myClientId;
+        const canBeManaged = !isMe && userId != null && !['owner', 'admin'].includes(role);
         return {
           clientId: p.clientId,
+          userId,
           name: p.name || p.username || 'guest',
           role,
-          isMe: myClientId && p.clientId === myClientId,
+          isMe,
+          canBeManaged,
         };
       })
       .sort((a, b) => {
@@ -1816,12 +1851,44 @@ export default function EditorApp() {
                     <span className="roomGuestName">{guest.name}</span>
                     {guest.isMe ? <span className="roomGuestMe">ти</span> : null}
                   </div>
-                  <span className="roomGuestRole">{guest.role}</span>
+                  <div className="roomGuestMeta">
+                    <span className="roomGuestRole">{guest.role}</span>
+                    {canManageGuests ? (
+                      <div className="roomGuestActions">
+                        <button
+                          className="btn ghost roomGuestActionBtn"
+                          disabled={!guest.canBeManaged || guest.role === 'viewer'}
+                          onClick={() => manageRoomGuest(guest, 'set-role', 'viewer')}
+                        >
+                          Viewer
+                        </button>
+                        <button
+                          className="btn ghost roomGuestActionBtn"
+                          disabled={!guest.canBeManaged || guest.role === 'editor'}
+                          onClick={() => manageRoomGuest(guest, 'set-role', 'editor')}
+                        >
+                          Editor
+                        </button>
+                        <button
+                          className="btn warn roomGuestActionBtn"
+                          disabled={!guest.canBeManaged}
+                          onClick={() => manageRoomGuest(guest, 'remove')}
+                        >
+                          Премахни
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )) : (
                 <div className="small">Няма активни гости в момента.</div>
               )}
             </div>
+            {canManageGuests ? (
+              <div className="small" style={{ marginTop: 10 }}>
+                Можеш да променяш роля Viewer/Editor или да премахваш участници от стаята.
+              </div>
+            ) : null}
           </div>
 
           {isAuthenticated && (myRole === 'owner' || myRole === 'admin') && joinRequests.length > 0 ? (

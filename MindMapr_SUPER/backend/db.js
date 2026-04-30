@@ -668,6 +668,13 @@ async function upsertRoomMemberRole(roomId, userId, roleInRoom = 'viewer', appro
   );
 }
 
+async function deleteRoomMember(roomId, userId) {
+  return run(
+    'DELETE FROM room_members WHERE room_id = ? AND user_id = ?',
+    [String(roomId), Number(userId)]
+  );
+}
+
 module.exports = {
   initDatabase,
   // low-level helpers (used by admin routes)
@@ -734,4 +741,5 @@ module.exports = {
   // Room members
   getRoomMember,
   upsertRoomMemberRole,
+  deleteRoomMember,
 };
