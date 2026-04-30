@@ -706,8 +706,6 @@ export default function EditorApp() {
     return node?.selected ? "#dffff7" : "#c9b8ff";
   }, []);
 
-  console.log(nodes, "render nodes");
-
   const openNodeMenuAtEvent = (ev, node) => {
     if (!canEdit) return;
     try {
