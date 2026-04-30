@@ -1256,23 +1256,53 @@ function broadcast(room, payload, exceptWs) {
 }
 
 async function ensureAdminUser() {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  const adminUsername = process.env.ADMIN_USERNAME || "admin";
+  async function seedAccount({ email, password, username, role, sourceLabel }) {
+    if (!email || !password) return false;
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existing = await getUserByEmail(normalizedEmail);
+    if (existing) return true;
+    const passwordHash = await hashPassword(password);
+    await insertUser(normalizedEmail, username || 'admin', passwordHash, role);
+    console.log(`Seeded ${role} user from ${sourceLabel}.`);
+    return true;
+  }
+
+  const legacyEmail = process.env.ADMIN_EMAIL;
+  const legacyPassword = process.env.ADMIN_PASSWORD;
+  const legacyUsername = process.env.ADMIN_USERNAME || 'admin';
   const requestedAdminRole = String(process.env.ADMIN_ROLE || 'super-admin').trim().toLowerCase();
-  const adminRole = ['super-admin', 'ops-admin', 'admin'].includes(requestedAdminRole)
+  const legacyRole = ['super-admin', 'ops-admin', 'admin'].includes(requestedAdminRole)
     ? requestedAdminRole
     : 'super-admin';
 
-  // If explicit admin credentials provided via env, use them.
-  if (adminEmail && adminPassword) {
-    const normalizedEmail = String(adminEmail).trim().toLowerCase();
-    const existing = await getUserByEmail(normalizedEmail);
-    if (!existing) {
-      const passwordHash = await hashPassword(adminPassword);
-      await insertUser(normalizedEmail, adminUsername, passwordHash, adminRole);
-      console.log(`Seeded ${adminRole} user from ADMIN_EMAIL/ADMIN_PASSWORD.`);
-    }
+  const superAdminSeeded = await seedAccount({
+    email: process.env.SUPER_ADMIN_EMAIL || legacyEmail,
+    password: process.env.SUPER_ADMIN_PASSWORD || legacyPassword,
+    username: process.env.SUPER_ADMIN_USERNAME || legacyUsername,
+    role: 'super-admin',
+    sourceLabel: process.env.SUPER_ADMIN_EMAIL ? 'SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD' : 'ADMIN_EMAIL/ADMIN_PASSWORD',
+  });
+
+  const opsAdminSeeded = await seedAccount({
+    email: process.env.OPS_ADMIN_EMAIL,
+    password: process.env.OPS_ADMIN_PASSWORD,
+    username: process.env.OPS_ADMIN_USERNAME || 'ops-admin',
+    role: 'ops-admin',
+    sourceLabel: 'OPS_ADMIN_EMAIL/OPS_ADMIN_PASSWORD',
+  });
+
+  // Backward-compatible legacy single admin seed with configurable role.
+  if (!process.env.SUPER_ADMIN_EMAIL && legacyEmail && legacyPassword) {
+    await seedAccount({
+      email: legacyEmail,
+      password: legacyPassword,
+      username: legacyUsername,
+      role: legacyRole,
+      sourceLabel: 'ADMIN_EMAIL/ADMIN_PASSWORD',
+    });
+  }
+
+  if (superAdminSeeded || opsAdminSeeded) {
     return;
   }
 
