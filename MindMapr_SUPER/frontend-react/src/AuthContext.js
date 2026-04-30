@@ -86,9 +86,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const normalizedRole = String(user?.role || '').toLowerCase();
-  const isAdmin = ['admin', 'super-admin', 'ops-admin'].includes(normalizedRole);
-  const isSuperAdmin = normalizedRole === 'super-admin' || normalizedRole === 'admin';
-  const isOpsAdmin = normalizedRole === 'ops-admin';
+  const isAdmin = normalizedRole === 'admin';
   const isAuthenticated = !!user;
 
   return (
@@ -101,8 +99,6 @@ export const AuthProvider = ({ children }) => {
       logout,
       changePassword,
       isAdmin,
-      isSuperAdmin,
-      isOpsAdmin,
       isAuthenticated,
     }}>
       {children}

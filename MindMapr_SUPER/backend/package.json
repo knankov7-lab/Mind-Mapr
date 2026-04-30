@@ -15,8 +15,6 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "create-admin": "node create_admin.js",
-    "create-super-admin": "node create_admin.js --role=super-admin",
-    "create-ops-admin": "node create_admin.js --role=ops-admin"
+    "create-admin": "node create_admin.js"
   }
 }

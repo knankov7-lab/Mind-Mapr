@@ -15,19 +15,7 @@ export default function AdminPanel({ onClose }) {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('users');
 
-  const adminPermissions = useMemo(() => {
-    const role = String(user?.role || '').toLowerCase();
-    if (Array.isArray(user?.permissions) && user.permissions.length > 0) return user.permissions;
-    if (role === 'ops-admin') {
-      return ['users.read', 'rooms.read', 'rooms.approve', 'saves.read', 'logs.read', 'stats.read'];
-    }
-    if (role === 'super-admin' || role === 'admin') {
-      return ['users.read', 'rooms.read', 'rooms.approve', 'rooms.delete', 'saves.read', 'logs.read', 'stats.read', 'settings.read', 'settings.write'];
-    }
-    return [];
-  }, [user]);
-
-  const can = useCallback((permission) => adminPermissions.includes(permission), [adminPermissions]);
+  const can = useCallback(() => true, []);
 
   const roleAuditLogs = useMemo(() => {
     const rows = Array.isArray(logs) ? logs : [];
@@ -50,42 +38,18 @@ export default function AdminPanel({ onClose }) {
       });
   }, [logs]);
 
-  const roleOptions = useMemo(() => {
-    const base = [
-      { value: 'user', label: 'user' },
-      { value: 'ops-admin', label: 'ops admin' },
-    ];
-    if (can('users.manage')) {
-      base.push({ value: 'super-admin', label: 'super admin' });
-      base.push({ value: 'admin', label: 'admin (legacy)' });
-    }
-    return base;
-  }, [can]);
+  const roleOptions = useMemo(() => [
+    { value: 'user', label: 'user' },
+    { value: 'admin', label: 'admin' },
+  ], []);
 
   const roleLabel = useCallback((roleValue) => {
     const role = String(roleValue || 'user').toLowerCase();
-    if (role === 'super-admin') return 'super admin';
-    if (role === 'ops-admin') return 'ops admin';
-    if (role === 'admin') return 'admin (legacy)';
     return role;
   }, []);
 
   const roleBadgeStyle = useCallback((roleValue) => {
     const role = String(roleValue || 'user').toLowerCase();
-    if (role === 'super-admin') {
-      return {
-        background: 'rgba(255, 90, 90, .18)',
-        border: '1px solid rgba(255, 90, 90, .45)',
-        color: '#ffdede',
-      };
-    }
-    if (role === 'ops-admin') {
-      return {
-        background: 'rgba(255, 196, 64, .18)',
-        border: '1px solid rgba(255, 196, 64, .45)',
-        color: '#fff2cf',
-      };
-    }
     if (role === 'admin') {
       return {
         background: 'rgba(139, 102, 255, .18)',
@@ -186,7 +150,6 @@ export default function AdminPanel({ onClose }) {
   }
 
   async function applyUserRole(userRow) {
-    if (!can('users.manage')) return;
     const userId = Number(userRow?.id);
     if (!Number.isFinite(userId)) return;
     if (Number(user?.id) === userId) return;
@@ -234,9 +197,9 @@ export default function AdminPanel({ onClose }) {
           <h4 style={{margin:'8px 0'}}>Потребители</h4>
           <div style={{maxHeight:180,overflow:'auto',border:'1px solid rgba(255,255,255,.10)',borderRadius:'12px',background:'rgba(255,255,255,.04)'}}>
             <table style={{width:'100%',fontSize:13}}>
-              <thead style={{background:'rgba(124,92,255,.18)'}}><tr><th>ID</th><th>Email</th><th>Username</th><th>Role</th>{can('users.manage') ? <th>Manage</th> : null}</tr></thead>
+              <thead style={{background:'rgba(124,92,255,.18)'}}><tr><th>ID</th><th>Email</th><th>Username</th><th>Role</th><th>Manage</th></tr></thead>
               <tbody>{(users||[]).map(u=> (
-                <tr key={u.id} style={{background:['admin','super-admin','ops-admin'].includes(String(u.role || '').toLowerCase())?'rgba(38,209,167,.12)':'none'}}>
+                <tr key={u.id} style={{background: String(u.role || '').toLowerCase() === 'admin' ? 'rgba(38,209,167,.12)' : 'none'}}>
                   <td>{u.id}</td>
                   <td>{u.email}</td>
                   <td>{u.username}</td>
@@ -258,8 +221,7 @@ export default function AdminPanel({ onClose }) {
                       {roleLabel(u.role)}
                     </span>
                   </td>
-                  {can('users.manage') ? (
-                    <td>
+                  <td>
                       {Number(user?.id) === Number(u.id) ? (
                         <span style={{opacity:.8,fontSize:12}}>текущ профил</span>
                       ) : (
@@ -285,14 +247,13 @@ export default function AdminPanel({ onClose }) {
                           </button>
                         </div>
                       )}
-                    </td>
-                  ) : null}
+                  </td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
           <div style={{marginTop:8,fontSize:12,opacity:.85}}>
-            Роли: <b>user</b>, <b>ops admin</b>, <b>super admin</b> и <b>admin (legacy)</b>.
+            Роли: <b>user</b> и <b>admin</b>.
           </div>
           {can('users.manage') ? <div style={{marginTop:8,fontSize:12,opacity:.85}}>Промяната на роля влиза в сила веднага. Засегнатият потребител може да трябва да влезе отново.</div> : null}
         </section>

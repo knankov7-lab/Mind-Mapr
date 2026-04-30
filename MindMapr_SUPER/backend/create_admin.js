@@ -10,9 +10,9 @@ const { initDatabase, insertUser, getUserByEmail } = require('./db');
   const passwordArg = args.find((arg) => arg.startsWith('--password='));
   const usernameArg = args.find((arg) => arg.startsWith('--username='));
 
-  const allowedRoles = ['admin', 'super-admin', 'ops-admin'];
-  const requestedRole = (roleArg ? roleArg.split('=')[1] : process.env.ACCOUNT_ROLE || process.env.ADMIN_ROLE || 'super-admin').toLowerCase();
-  const role = allowedRoles.includes(requestedRole) ? requestedRole : 'super-admin';
+  const allowedRoles = ['admin'];
+  const requestedRole = (roleArg ? roleArg.split('=')[1] : process.env.ACCOUNT_ROLE || process.env.ADMIN_ROLE || 'admin').toLowerCase();
+  const role = allowedRoles.includes(requestedRole) ? requestedRole : 'admin';
 
   const email = (emailArg ? emailArg.split('=')[1] : process.env.ACCOUNT_EMAIL || process.env.ADMIN_EMAIL || 'admin@example.com').toLowerCase();
   const password = passwordArg ? passwordArg.split('=')[1] : process.env.ACCOUNT_PASSWORD || process.env.ADMIN_PASSWORD || 'admin123';

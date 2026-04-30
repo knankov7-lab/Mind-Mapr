@@ -547,7 +547,7 @@ export default function EditorApp() {
     setJoinRequests((prev) => prev.filter((item) => item.requestId !== requestId));
   }, [showToast]);
 
-  const isAdminLevelRole = ['admin', 'super-admin', 'ops-admin'].includes(String(myRole || '').toLowerCase());
+  const isAdminLevelRole = String(myRole || '').toLowerCase() === 'admin';
   const canManageGuests = isAuthenticated && (myRole === 'owner' || isAdminLevelRole);
 
   const manageRoomGuest = useCallback((guest, action, role = 'viewer') => {

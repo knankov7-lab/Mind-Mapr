@@ -15,89 +15,18 @@ const {
 const { toSofiaSqlString } = require("./time");
 
 const JWT_SECRET = process.env.JWT_SECRET || "mindmapr-dev-secret";
-const PRIMARY_ADMIN_EMAIL = String(process.env.PRIMARY_ADMIN_EMAIL || "admin@example.com").trim().toLowerCase();
-
-const ROLE_PERMISSIONS = {
-  user: [],
-  "ops-admin": [
-    "admin.access",
-    "users.read",
-    "rooms.read",
-    "rooms.approve",
-    "saves.read",
-    "logs.read",
-    "stats.read",
-  ],
-  "super-admin": [
-    "admin.access",
-    "users.read",
-    "users.manage",
-    "rooms.read",
-    "rooms.approve",
-    "rooms.delete",
-    "saves.read",
-    "logs.read",
-    "stats.read",
-    "settings.read",
-    "settings.write",
-  ],
-  // Backward-compatible legacy role
-  admin: [
-    "admin.access",
-    "users.read",
-    "users.manage",
-    "rooms.read",
-    "rooms.approve",
-    "rooms.delete",
-    "saves.read",
-    "logs.read",
-    "stats.read",
-    "settings.read",
-    "settings.write",
-  ],
-};
-
-const ALL_ADMIN_PERMISSIONS = Array.from(new Set([
-  ...(ROLE_PERMISSIONS["ops-admin"] || []),
-  ...(ROLE_PERMISSIONS["super-admin"] || []),
-]));
 
 function normalizeRole(role) {
   return String(role || "user").trim().toLowerCase();
 }
 
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
-
-function getPermissionsForRole(role) {
-  const normalized = normalizeRole(role);
-  const list = ROLE_PERMISSIONS[normalized] || ROLE_PERMISSIONS.user;
-  return Array.from(new Set(list));
-}
-
 function isAdminRole(role) {
-  const normalized = normalizeRole(role);
-  return normalized === "admin" || normalized === "super-admin" || normalized === "ops-admin";
-}
-
-function isPrimaryAdminUser(user) {
-  if (!user) return false;
-  return normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL;
+  return normalizeRole(role) === "admin";
 }
 
 function isAdminUserLike(user) {
   if (!user) return false;
-  return isPrimaryAdminUser(user) || isAdminRole(user.role);
-}
-
-function hasPermission(user, permission) {
-  if (!user || !permission) return false;
-  if (isPrimaryAdminUser(user)) return true;
-  const normalizedPermission = String(permission).trim();
-  if (!normalizedPermission) return false;
-  const permissions = getPermissionsForRole(user.role);
-  return permissions.includes(normalizedPermission);
+  return isAdminRole(user.role);
 }
 
 async function hashPassword(password) {
@@ -110,14 +39,11 @@ async function verifyPassword(password, hash) {
 
 function toSafeUser(user) {
   const role = normalizeRole(user.role);
-  const isPrimaryAdmin = isPrimaryAdminUser(user);
   return {
     id: user.id,
     email: user.email,
     username: user.username || null,
-    role: isPrimaryAdmin && role === "user" ? "super-admin" : role,
-    permissions: isPrimaryAdmin ? ALL_ADMIN_PERMISSIONS : getPermissionsForRole(role),
-    isPrimaryAdmin,
+    role,
   };
 }
 
@@ -175,17 +101,7 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function requirePermission(permission) {
-  return (req, res, next) => {
-    if (!req.user || !isAdminUserLike(req.user)) {
-      return res.status(403).json({ error: "Admin access required" });
-    }
-    if (!hasPermission(req.user, permission)) {
-      return res.status(403).json({ error: "Missing permission" });
-    }
-    next();
-  };
-}
+
 
 async function register(req, res) {
   const { email, password, username } = req.body || {};
@@ -346,11 +262,7 @@ module.exports = {
   hashPassword,
   verifyToken,
   isAdminRole,
-  isPrimaryAdminUser,
   isAdminUserLike,
-  hasPermission,
-  getPermissionsForRole,
-  requirePermission,
   updateProfile,
   changePassword,
   requestPasswordReset,

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requirePermission, isPrimaryAdminUser } = require('./auth');
+const { requireAdmin } = require('./auth');
 const {
   run,
   get,
@@ -47,7 +47,7 @@ router.use(async (_req, _res, next) => {
 });
 
 // List users
-router.get('/users', requirePermission('users.read'), async (req, res) => {
+router.get('/users', requireAdmin, async (req, res) => {
   try {
     const rows = await all('SELECT id, email, username, role, created_at FROM users ORDER BY id DESC');
     res.json({ users: rows });
@@ -55,10 +55,10 @@ router.get('/users', requirePermission('users.read'), async (req, res) => {
 });
 
 // Update user role
-router.put('/users/:id/role', requirePermission('users.manage'), async (req, res) => {
+router.put('/users/:id/role', requireAdmin, async (req, res) => {
   const userId = Number(req.params.id);
   const role = String(req.body?.role || '').trim().toLowerCase();
-  const allowedRoles = ['user', 'ops-admin', 'super-admin', 'admin'];
+  const allowedRoles = ['user', 'admin'];
 
   if (!Number.isFinite(userId) || userId <= 0) {
     return res.status(400).json({ error: 'invalid user id' });
@@ -74,19 +74,6 @@ router.put('/users/:id/role', requirePermission('users.manage'), async (req, res
     const target = await getUserById(userId);
     if (!target) return res.status(404).json({ error: 'user not found' });
 
-    const actorIsPrimary = isPrimaryAdminUser(req.user);
-    const targetRole = String(target.role || 'user').toLowerCase();
-    const highLevelRoles = ['super-admin', 'admin'];
-    const touchesHighLevelRole = highLevelRoles.includes(targetRole) || highLevelRoles.includes(role);
-    if (touchesHighLevelRole && !actorIsPrimary) {
-      return res.status(403).json({ error: 'only primary admin can manage super-admin/admin accounts' });
-    }
-
-    const actorRole = String(req.user?.role || '').toLowerCase();
-    if (actorRole === 'ops-admin' && ['super-admin', 'admin'].includes(role)) {
-      return res.status(403).json({ error: 'ops-admin cannot assign super-admin/admin roles' });
-    }
-
     await updateUserRole(userId, role);
     try {
       await insertLog(req.user?.id ?? null, 'admin_user_set_role', { userId, role }, req.ip);
@@ -99,7 +86,7 @@ router.put('/users/:id/role', requirePermission('users.manage'), async (req, res
 });
 
 // List rooms
-router.get('/rooms', requirePermission('rooms.read'), async (req, res) => {
+router.get('/rooms', requireAdmin, async (req, res) => {
   try {
     const rows = await all(`
       SELECT
@@ -145,7 +132,7 @@ router.get('/rooms', requirePermission('rooms.read'), async (req, res) => {
 });
 
 // List all saves (admin only)
-router.get('/saves', requirePermission('saves.read'), async (_req, res) => {
+router.get('/saves', requireAdmin, async (_req, res) => {
   try {
     const rows = await all(`
       SELECT
@@ -167,7 +154,7 @@ router.get('/saves', requirePermission('saves.read'), async (_req, res) => {
 });
 
 // Approve room (mark public)
-router.post('/rooms/:room/approve', requirePermission('rooms.approve'), async (req, res) => {
+router.post('/rooms/:room/approve', requireAdmin, async (req, res) => {
   const room = req.params.room;
   try {
     await run(
@@ -183,7 +170,7 @@ router.post('/rooms/:room/approve', requirePermission('rooms.approve'), async (r
 });
 
 // Reject room from public approval flow
-router.post('/rooms/:room/reject', requirePermission('rooms.approve'), async (req, res) => {
+router.post('/rooms/:room/reject', requireAdmin, async (req, res) => {
   const room = req.params.room;
   try {
     await run(
@@ -199,7 +186,7 @@ router.post('/rooms/:room/reject', requirePermission('rooms.approve'), async (re
 });
 
 // Delete room and its saves
-router.delete('/rooms/:room', requirePermission('rooms.delete'), async (req, res) => {
+router.delete('/rooms/:room', requireAdmin, async (req, res) => {
   const room = req.params.room;
   try {
     await run('DELETE FROM saves WHERE room_id = ?', [room]);
@@ -212,7 +199,7 @@ router.delete('/rooms/:room', requirePermission('rooms.delete'), async (req, res
 });
 
 // Logs (admin only)
-router.get('/logs', requirePermission('logs.read'), async (req, res) => {
+router.get('/logs', requireAdmin, async (req, res) => {
   try {
     const limit = req.query.limit;
     const userId = req.query.userId;
@@ -229,7 +216,7 @@ router.get('/logs', requirePermission('logs.read'), async (req, res) => {
 });
 
 // Stats: active users (count), popular maps, keywords
-router.get('/stats', requirePermission('stats.read'), async (req, res) => {
+router.get('/stats', requireAdmin, async (req, res) => {
   try {
     const usersCountRow = await get('SELECT COUNT(1) as cnt FROM users');
     const usersCount = usersCountRow?.cnt || 0;
@@ -257,7 +244,7 @@ router.get('/stats', requirePermission('stats.read'), async (req, res) => {
 });
 
 // Settings endpoints
-router.get('/settings', requirePermission('settings.read'), async (req, res) => {
+router.get('/settings', requireAdmin, async (req, res) => {
   try {
     const rows = await all('SELECT key, value FROM settings');
     const obj = {};
@@ -266,7 +253,7 @@ router.get('/settings', requirePermission('settings.read'), async (req, res) => 
   } catch (e) { res.status(500).json({ error: 'Failed to load settings' }); }
 });
 
-router.put('/settings', requirePermission('settings.write'), async (req, res) => {
+router.put('/settings', requireAdmin, async (req, res) => {
   try {
     const entries = req.body || {};
     const keys = Object.keys(entries);

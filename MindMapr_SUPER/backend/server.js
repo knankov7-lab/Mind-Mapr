@@ -1270,44 +1270,22 @@ async function ensureAdminUser() {
 
   const legacyEmail = process.env.ADMIN_EMAIL;
   const legacyPassword = process.env.ADMIN_PASSWORD;
-  const legacyUsername = process.env.ADMIN_USERNAME || 'admin';
-  const requestedAdminRole = String(process.env.ADMIN_ROLE || 'super-admin').trim().toLowerCase();
-  const legacyRole = ['super-admin', 'ops-admin', 'admin'].includes(requestedAdminRole)
-    ? requestedAdminRole
-    : 'super-admin';
+  const requestedAdminRole = String(process.env.ADMIN_ROLE || 'admin').trim().toLowerCase();
+  const legacyRole = requestedAdminRole === 'admin' ? 'admin' : 'admin';
 
-  const superAdminSeeded = await seedAccount({
-    email: process.env.SUPER_ADMIN_EMAIL || legacyEmail,
-    password: process.env.SUPER_ADMIN_PASSWORD || legacyPassword,
-    username: process.env.SUPER_ADMIN_USERNAME || legacyUsername,
-    role: 'super-admin',
-    sourceLabel: process.env.SUPER_ADMIN_EMAIL ? 'SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD' : 'ADMIN_EMAIL/ADMIN_PASSWORD',
+  const adminSeeded = await seedAccount({
+    email: process.env.ADMIN_EMAIL,
+    password: process.env.ADMIN_PASSWORD,
+    username: process.env.ADMIN_USERNAME || 'admin',
+    role: 'admin',
+    sourceLabel: 'ADMIN_EMAIL/ADMIN_PASSWORD',
   });
 
-  const opsAdminSeeded = await seedAccount({
-    email: process.env.OPS_ADMIN_EMAIL,
-    password: process.env.OPS_ADMIN_PASSWORD,
-    username: process.env.OPS_ADMIN_USERNAME || 'ops-admin',
-    role: 'ops-admin',
-    sourceLabel: 'OPS_ADMIN_EMAIL/OPS_ADMIN_PASSWORD',
-  });
-
-  // Backward-compatible legacy single admin seed with configurable role.
-  if (!process.env.SUPER_ADMIN_EMAIL && legacyEmail && legacyPassword) {
-    await seedAccount({
-      email: legacyEmail,
-      password: legacyPassword,
-      username: legacyUsername,
-      role: legacyRole,
-      sourceLabel: 'ADMIN_EMAIL/ADMIN_PASSWORD',
-    });
-  }
-
-  if (superAdminSeeded || opsAdminSeeded) {
+  if (adminSeeded) {
     return;
   }
 
-  // Local dev fallback: if there are no users at all, create a default admin account.
+  // Local dev fallback
   try {
     const row = await get('SELECT COUNT(1) as cnt FROM users');
     const count = row?.cnt || 0;
@@ -1315,8 +1293,8 @@ async function ensureAdminUser() {
       const fallbackEmail = 'admin@local';
       const fallbackPassword = 'admin';
       const passwordHash = await hashPassword(fallbackPassword);
-      await insertUser(fallbackEmail, adminUsername, passwordHash, 'super-admin');
-      console.log(`Seeded default super-admin user: ${fallbackEmail} / ${fallbackPassword}`);
+      await insertUser(fallbackEmail, 'admin', passwordHash, 'admin');
+      console.log(`Seeded default admin user: ${fallbackEmail} / ${fallbackPassword}`);
     }
   } catch (e) {
     // ignore errors seeding dev admin
