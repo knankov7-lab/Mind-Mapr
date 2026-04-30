@@ -236,6 +236,11 @@ async function initDatabase() {
   await run("CREATE INDEX IF NOT EXISTS idx_rooms_public ON rooms(public)");
   await run("CREATE INDEX IF NOT EXISTS idx_rooms_team_id ON rooms(team_id)");
 
+  // Role cleanup migration: keep only admin/user/guest in users.role.
+  await run("UPDATE users SET role = 'admin' WHERE lower(trim(role)) IN ('super-admin', 'ops-admin')");
+  await run("UPDATE users SET role = 'user' WHERE role IS NULL OR trim(role) = ''");
+  await run("UPDATE users SET role = 'user' WHERE lower(trim(role)) NOT IN ('admin', 'user', 'guest')");
+
   return db;
 }
 
@@ -252,7 +257,7 @@ async function updateUserPasswordHash(userId, passwordHash) {
 
 async function updateUserRole(userId, role) {
   const safeRole = String(role || "user").trim().toLowerCase();
-  const allowed = ["user", "ops-admin", "super-admin", "admin"];
+  const allowed = ["user", "admin", "guest"];
   if (!allowed.includes(safeRole)) throw new Error("invalid role");
   return run("UPDATE users SET role = ? WHERE id = ?", [safeRole, userId]);
 }
