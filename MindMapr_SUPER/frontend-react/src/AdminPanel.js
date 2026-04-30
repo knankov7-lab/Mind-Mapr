@@ -101,7 +101,10 @@ export default function AdminPanel({ onClose }) {
   }, []);
 
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (!user) return;
+    fetchAll();
+  }, [user, can]);
 
   // AI training UI removed
 

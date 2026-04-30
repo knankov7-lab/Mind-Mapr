@@ -57,6 +57,11 @@ const ROLE_PERMISSIONS = {
   ],
 };
 
+const ALL_ADMIN_PERMISSIONS = Array.from(new Set([
+  ...(ROLE_PERMISSIONS["ops-admin"] || []),
+  ...(ROLE_PERMISSIONS["super-admin"] || []),
+]));
+
 function normalizeRole(role) {
   return String(role || "user").trim().toLowerCase();
 }
@@ -105,12 +110,14 @@ async function verifyPassword(password, hash) {
 
 function toSafeUser(user) {
   const role = normalizeRole(user.role);
+  const isPrimaryAdmin = isPrimaryAdminUser(user);
   return {
     id: user.id,
     email: user.email,
     username: user.username || null,
-    role,
-    permissions: getPermissionsForRole(role),
+    role: isPrimaryAdmin && role === "user" ? "super-admin" : role,
+    permissions: isPrimaryAdmin ? ALL_ADMIN_PERMISSIONS : getPermissionsForRole(role),
+    isPrimaryAdmin,
   };
 }
 
