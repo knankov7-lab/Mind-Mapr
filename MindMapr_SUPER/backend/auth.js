@@ -126,15 +126,34 @@ function verifyToken(token) {
   }
 }
 
-function authMiddleware(req, _res, next) {
+async function authMiddleware(req, _res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     req.user = null;
     return next();
   }
-  const token = authHeader.slice(7);
-  req.user = verifyToken(token);
-  next();
+
+  try {
+    const token = authHeader.slice(7);
+    const decoded = verifyToken(token);
+    if (!decoded || !decoded.id) {
+      req.user = null;
+      return next();
+    }
+
+    // Always hydrate user from DB so role/permission changes apply immediately.
+    const freshUser = await getUserById(decoded.id);
+    if (!freshUser) {
+      req.user = null;
+      return next();
+    }
+
+    req.user = toSafeUser(freshUser);
+    return next();
+  } catch {
+    req.user = null;
+    return next();
+  }
 }
 
 function requireAuth(req, res, next) {
