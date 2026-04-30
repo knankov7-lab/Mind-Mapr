@@ -88,6 +88,38 @@ export default function EditorApp() {
   const renameModalInputRef = useRef(null);
   const [authForm, setAuthForm] = useState({ email: "", password: "", username: "" });
   const [authError, setAuthError] = useState("");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const onboardingBootKeyRef = useRef(null);
+
+  const onboardingSteps = useMemo(() => [
+    {
+      title: "Добре дошъл в MindMapr",
+      body: "Това е кратък тур за първия ти вход. След 1 минута ще знаеш как да правиш карта и да работиш с екип.",
+      points: ["Можеш да го пропуснеш по всяко време.", "Ще се покаже само веднъж за този профил."]
+    },
+    {
+      title: "Създай личен проект",
+      body: "Използвай бутона „Мой проект“, за да получиш собствена стая. После натисни „Запази“, за да запишеш картата в базата.",
+      points: ["Личният room е уникален за твоя профил.", "Записът изисква да си влязъл в системата."]
+    },
+    {
+      title: "Редактирай бързо",
+      body: "Добавяй идеи с Ctrl+K, свързвай 2 избрани възела с бутона „Свържи“, и ползвай десен клик за форма/цвят/изтриване.",
+      points: ["F2 преименува избран възел.", "Delete трие избраните възли или връзки."]
+    },
+    {
+      title: "Покани екипа",
+      body: "Копирай линка на стаята и го изпрати. При частни стаи ръководителят одобрява достъпа като Viewer или Editor.",
+      points: ["Viewer вижда картата.", "Editor може да редактира в реално време."]
+    }
+  ], []);
+
+  const onboardingStorageKey = useMemo(() => {
+    const identity = user?.id || user?.email || user?.username;
+    if (!identity) return null;
+    return `mm_onboarding_seen_${String(identity).toLowerCase()}`;
+  }, [user]);
 
   const PANEL_MIN = 240;
   const PANEL_MAX = 560;
@@ -193,6 +225,61 @@ export default function EditorApp() {
   }
   const [commentText, setCommentText] = useState('');
   const [commentNodeId, setCommentNodeId] = useState('');
+
+  const finishOnboarding = useCallback((showDoneToast = true) => {
+    if (onboardingStorageKey) {
+      localStorage.setItem(onboardingStorageKey, '1');
+    }
+    setShowOnboarding(false);
+    if (showDoneToast) {
+      showToast('Готово. Успешен старт в MindMapr.');
+    }
+  }, [onboardingStorageKey, showToast]);
+
+  const skipOnboarding = useCallback(() => {
+    finishOnboarding(false);
+  }, [finishOnboarding]);
+
+  const nextOnboardingStep = useCallback(() => {
+    if (onboardingStep >= onboardingSteps.length - 1) {
+      finishOnboarding(true);
+      return;
+    }
+    setOnboardingStep((prev) => Math.min(onboardingSteps.length - 1, prev + 1));
+  }, [onboardingStep, onboardingSteps.length, finishOnboarding]);
+
+  const prevOnboardingStep = useCallback(() => {
+    setOnboardingStep((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  useEffect(() => {
+    const bootKey = isAuthenticated && onboardingStorageKey ? onboardingStorageKey : null;
+    if (onboardingBootKeyRef.current === bootKey) return;
+    onboardingBootKeyRef.current = bootKey;
+
+    if (!bootKey) {
+      setShowOnboarding(false);
+      setOnboardingStep(0);
+      return;
+    }
+
+    const hasSeen = localStorage.getItem(bootKey) === '1';
+    if (!hasSeen) {
+      setOnboardingStep(0);
+      setShowOnboarding(true);
+    }
+  }, [isAuthenticated, onboardingStorageKey]);
+
+  useEffect(() => {
+    if (!showOnboarding) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') skipOnboarding();
+      if (e.key === 'ArrowRight') nextOnboardingStep();
+      if (e.key === 'ArrowLeft') prevOnboardingStep();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showOnboarding, nextOnboardingStep, prevOnboardingStep, skipOnboarding]);
 
   const sendJoin = useCallback((nextRoom = room) => {
     const ws = wsRef.current;
@@ -1492,6 +1579,9 @@ export default function EditorApp() {
     return u.toString();
   }, [room]);
 
+  const activeOnboardingStep = onboardingSteps[onboardingStep] || onboardingSteps[0];
+  const onboardingProgress = ((onboardingStep + 1) / onboardingSteps.length) * 100;
+
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (e) => {
@@ -2007,6 +2097,38 @@ export default function EditorApp() {
                 <button className="btn ghost" onClick={cancelRenameSelected}>Отмени</button>
                 <button className="btn primary" onClick={commitRenameSelected}>OK</button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showOnboarding && isAuthenticated ? (
+        <div className="page-overlay tutorialOverlay" style={{ zIndex: 1500 }}>
+          <div className="page tutorialCard" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="tutorialHeader">
+              <div>
+                <div className="tutorialStepMeta">Стъпка {onboardingStep + 1} от {onboardingSteps.length}</div>
+                <h3>{activeOnboardingStep?.title}</h3>
+              </div>
+              <button className="btn ghost tutorialSkipBtn" onClick={skipOnboarding}>Пропусни</button>
+            </div>
+
+            <div className="tutorialProgressBar">
+              <div className="tutorialProgressFill" style={{ width: `${onboardingProgress}%` }} />
+            </div>
+
+            <p className="tutorialBody">{activeOnboardingStep?.body}</p>
+
+            <div className="tutorialTips">
+              {(activeOnboardingStep?.points || []).map((tip) => (
+                <div key={tip} className="tutorialTipItem">• {tip}</div>
+              ))}
+            </div>
+
+            <div className="tutorialActions">
+              <button className="btn ghost" disabled={onboardingStep === 0} onClick={prevOnboardingStep}>Назад</button>
+              <button className="btn primary" onClick={nextOnboardingStep}>
+                {onboardingStep === onboardingSteps.length - 1 ? 'Започни работа' : 'Напред'}
+              </button>
             </div>
           </div>
         </div>
