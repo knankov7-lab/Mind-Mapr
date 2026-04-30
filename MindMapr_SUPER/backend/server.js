@@ -219,6 +219,58 @@ async function accessForRoomAndUser(roomId, user, { allowPublicRead = false } = 
   return { ok: false, status: 403, error: 'forbidden', room: rm };
 }
 
+async function canUserApproveRoomRequests(roomInfo, user) {
+  if (!roomInfo || !user) return false;
+
+  const isAdmin = String(user.role || '').toLowerCase() === 'admin';
+  if (isAdmin) return true;
+
+  const userId = Number(user.id);
+  if (!Number.isFinite(userId)) return false;
+
+  if (Number(roomInfo.created_by) === userId) return true;
+
+  if (roomInfo.team_id != null) {
+    const teamMember = await getTeamMember(Number(roomInfo.team_id), userId);
+    if (teamMember && String(teamMember.role_in_team || '').toLowerCase() === 'owner') return true;
+  }
+
+  const roomMember = await getRoomMember(roomInfo.room_id, userId);
+  if (roomMember && String(roomMember.role_in_room || '').toLowerCase() === 'owner') return true;
+
+  return false;
+}
+
+async function getRoomApproverUserIds(roomInfo) {
+  if (!roomInfo) return [];
+  const ids = new Set();
+
+  const creatorId = Number(roomInfo.created_by);
+  if (Number.isFinite(creatorId)) ids.add(creatorId);
+
+  const roomOwners = await all(
+    'SELECT user_id FROM room_members WHERE room_id = ? AND role_in_room = ?',
+    [String(roomInfo.room_id), 'owner']
+  );
+  for (const row of roomOwners || []) {
+    const id = Number(row?.user_id);
+    if (Number.isFinite(id)) ids.add(id);
+  }
+
+  if (roomInfo.team_id != null) {
+    const teamOwners = await all(
+      'SELECT user_id FROM team_members WHERE team_id = ? AND role_in_team = ?',
+      [Number(roomInfo.team_id), 'owner']
+    );
+    for (const row of teamOwners || []) {
+      const id = Number(row?.user_id);
+      if (Number.isFinite(id)) ids.add(id);
+    }
+  }
+
+  return Array.from(ids);
+}
+
 // Списък с всички карти (saves)
 app.get("/api/maps/list", requireAuth, async (req, res) => {
   try {
@@ -714,6 +766,13 @@ function sendToUser(userId, payload) {
   });
 }
 
+function isUserOnline(userId) {
+  if (!Number.isFinite(Number(userId))) return false;
+  return Array.from(wss.clients).some(
+    (client) => client.readyState === WebSocket.OPEN && Number(client.meta?.user?.id) === Number(userId)
+  );
+}
+
 function findPendingJoinRequest(roomId, userId) {
   for (const req of joinRequests.values()) {
     if (String(req.roomId) === String(roomId) && Number(req.requesterUserId) === Number(userId)) {
@@ -783,17 +842,14 @@ wss.on("connection", (ws) => {
       if (!access.ok) {
         const deniedRoom = access.room;
         const isForbidden = String(access.error || '') === 'forbidden';
-        const hasOwner = Number.isFinite(Number(deniedRoom?.created_by));
         const isAuthedRequester = !!claimedUser && Number.isFinite(Number(claimedUser.id));
-        const isOwnerSelf = isAuthedRequester && Number(deniedRoom?.created_by) === Number(claimedUser.id);
 
-        if (isForbidden && deniedRoom && hasOwner && isAuthedRequester && !isOwnerSelf) {
-          const ownerId = Number(deniedRoom.created_by);
-          const ownerOnline = Array.from(wss.clients).some(
-            (client) => client.readyState === WebSocket.OPEN && Number(client.meta?.user?.id) === ownerId
-          );
+        if (isForbidden && deniedRoom && isAuthedRequester) {
+          const approverIds = (await getRoomApproverUserIds(deniedRoom))
+            .filter((id) => Number(id) !== Number(claimedUser.id));
+          const onlineApproverIds = approverIds.filter((id) => isUserOnline(id));
 
-          if (ownerOnline) {
+          if (onlineApproverIds.length > 0) {
             const existing = findPendingJoinRequest(nextRoom, claimedUser.id);
             const reqPayload = existing || {
               requestId: crypto.randomBytes(8).toString('hex'),
@@ -809,25 +865,27 @@ wss.on("connection", (ws) => {
               joinRequests.set(reqPayload.requestId, reqPayload);
             }
 
-            sendToUser(ownerId, {
-              type: 'join-request',
-              request: {
-                requestId: reqPayload.requestId,
-                room: reqPayload.roomId,
-                requesterUserId: reqPayload.requesterUserId,
-                requesterEmail: reqPayload.requesterEmail,
-                requesterUsername: reqPayload.requesterUsername,
-                requesterName: reqPayload.requesterName,
-                requestedAt: reqPayload.requestedAt,
-              },
-            });
+            for (const approverId of onlineApproverIds) {
+              sendToUser(approverId, {
+                type: 'join-request',
+                request: {
+                  requestId: reqPayload.requestId,
+                  room: reqPayload.roomId,
+                  requesterUserId: reqPayload.requesterUserId,
+                  requesterEmail: reqPayload.requesterEmail,
+                  requesterUsername: reqPayload.requesterUsername,
+                  requesterName: reqPayload.requesterName,
+                  requestedAt: reqPayload.requestedAt,
+                },
+              });
+            }
 
             try {
               ws.send(
                 JSON.stringify({
                   type: 'join-request-pending',
                   room: nextRoom,
-                  message: 'Изпратена е заявка до собственика на стаята. Изчакай одобрение.',
+                  message: 'Изпратена е заявка до ръководителя на стаята. Изчакай одобрение.',
                 })
               );
             } catch {}
@@ -938,9 +996,8 @@ wss.on("connection", (ws) => {
         return;
       }
 
-      const actorIsAdmin = String(actor.role || '').toLowerCase() === 'admin';
-      const actorIsOwner = Number(roomInfo.created_by) === Number(actor.id);
-      if (!actorIsAdmin && !actorIsOwner) {
+      const canApprove = await canUserApproveRoomRequests(roomInfo, actor);
+      if (!canApprove) {
         try {
           ws.send(JSON.stringify({ type: 'error', room: request.roomId, error: 'forbidden' }));
         } catch {}
