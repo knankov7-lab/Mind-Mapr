@@ -1641,6 +1641,26 @@ export default function EditorApp() {
     return u.toString();
   }, [room]);
 
+  const roomGuests = useMemo(() => {
+    const list = Array.isArray(participants) ? participants : [];
+    return list
+      .filter((p) => p && p.clientId)
+      .map((p) => {
+        const role = String(p.role || 'guest').toLowerCase();
+        return {
+          clientId: p.clientId,
+          name: p.name || p.username || 'guest',
+          role,
+          isMe: myClientId && p.clientId === myClientId,
+        };
+      })
+      .sort((a, b) => {
+        if (a.isMe && !b.isMe) return -1;
+        if (!a.isMe && b.isMe) return 1;
+        return String(a.name).localeCompare(String(b.name), 'bg');
+      });
+  }, [participants, myClientId]);
+
   const activeOnboardingStep = onboardingSteps[onboardingStep] || onboardingSteps[0];
   const onboardingProgress = ((onboardingStep + 1) / onboardingSteps.length) * 100;
 
@@ -1781,6 +1801,27 @@ export default function EditorApp() {
                 {authError ? <div className="small" style={{ color: "#ff8f8f" }}>{authError}</div> : null}
               </div>
             )}
+          </div>
+
+          <div className="section">
+            <h3>Room Guests</h3>
+            <div className="roomGuestsHeader">
+              <span className="small">Онлайн в тази стая</span>
+              <span className="pill" title="Активни участници в стаята">{roomGuests.length}</span>
+            </div>
+            <div className="roomGuestsList">
+              {roomGuests.length ? roomGuests.map((guest) => (
+                <div key={guest.clientId} className="roomGuestItem">
+                  <div className="roomGuestMain">
+                    <span className="roomGuestName">{guest.name}</span>
+                    {guest.isMe ? <span className="roomGuestMe">ти</span> : null}
+                  </div>
+                  <span className="roomGuestRole">{guest.role}</span>
+                </div>
+              )) : (
+                <div className="small">Няма активни гости в момента.</div>
+              )}
+            </div>
           </div>
 
           {isAuthenticated && (myRole === 'owner' || myRole === 'admin') && joinRequests.length > 0 ? (
