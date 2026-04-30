@@ -250,6 +250,13 @@ async function updateUserPasswordHash(userId, passwordHash) {
   return run("UPDATE users SET password_hash = ? WHERE id = ?", [safeHash, userId]);
 }
 
+async function updateUserRole(userId, role) {
+  const safeRole = String(role || "user").trim().toLowerCase();
+  const allowed = ["user", "ops-admin", "super-admin", "admin"];
+  if (!allowed.includes(safeRole)) throw new Error("invalid role");
+  return run("UPDATE users SET role = ? WHERE id = ?", [safeRole, userId]);
+}
+
 async function insertTeam(name, ownerId, description = null) {
   const safeName = String(name || "").trim().slice(0, 80);
   if (!safeName) throw new Error("team name required");
@@ -688,6 +695,7 @@ module.exports = {
   listUsers,
   updateUserProfile,
   updateUserPasswordHash,
+  updateUserRole,
   insertRoom,
   getRoomById,
   listRooms,

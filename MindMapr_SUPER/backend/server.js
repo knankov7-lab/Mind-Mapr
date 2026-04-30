@@ -17,6 +17,7 @@ const {
   requestPasswordReset,
   resetPassword,
   verifyToken,
+  isAdminRole,
 } = require("./auth");
 // AI seeding removed
 const {
@@ -159,7 +160,7 @@ async function logAction(req, action, details) {
 }
 
 function isAdminUser(req) {
-  return String(req.user?.role || "").toLowerCase() === "admin";
+  return isAdminRole(req.user?.role);
 }
 
 async function canAccessRoom(req, roomId, { allowPublicRead = false } = {}) {
@@ -172,7 +173,7 @@ async function canAccessRoom(req, roomId, { allowPublicRead = false } = {}) {
 
   if (allowPublicRead && isPublic) return { ok: true, room: rm, role: "public" };
   if (!req.user) return { ok: false, status: 401, error: "Authentication required", room: rm };
-  if (admin || owner) return { ok: true, room: rm, role: admin ? "admin" : "owner" };
+  if (admin || owner) return { ok: true, room: rm, role: admin ? String(req.user.role || 'admin').toLowerCase() : "owner" };
 
   const teamId = rm.team_id;
   if (teamId != null) {
@@ -191,7 +192,7 @@ async function accessForRoomAndUser(roomId, user, { allowPublicRead = false } = 
   if (!rm) return { ok: false, status: 404, error: 'room not found', room: null };
 
   const isPublic = Number(rm.public || 0) === 1;
-  const isAdmin = !!user && String(user.role || '').toLowerCase() === 'admin';
+  const isAdmin = !!user && isAdminRole(user.role);
   const isOwner = !!user && Number(rm.created_by) === Number(user.id);
   if (allowPublicRead && isPublic && !user) {
     return { ok: true, room: rm, role: 'public', canWrite: false, canRead: true };
@@ -199,7 +200,7 @@ async function accessForRoomAndUser(roomId, user, { allowPublicRead = false } = 
   if (!user) {
     return { ok: false, status: 401, error: 'Authentication required', room: rm };
   }
-  if (isAdmin) return { ok: true, room: rm, role: 'admin', canWrite: true, canRead: true };
+  if (isAdmin) return { ok: true, room: rm, role: String(user.role || 'admin').toLowerCase(), canWrite: true, canRead: true };
   if (isOwner) return { ok: true, room: rm, role: 'owner', canWrite: true, canRead: true };
 
   const teamId = rm.team_id;
@@ -224,7 +225,7 @@ async function accessForRoomAndUser(roomId, user, { allowPublicRead = false } = 
 async function canUserApproveRoomRequests(roomInfo, user) {
   if (!roomInfo || !user) return false;
 
-  const isAdmin = String(user.role || '').toLowerCase() === 'admin';
+  const isAdmin = isAdminRole(user.role);
   if (isAdmin) return true;
 
   const userId = Number(user.id);
@@ -943,7 +944,7 @@ wss.on("connection", (ws) => {
       try {
         const settings = await getRuntimeSettings();
         const participantsCount = Array.isArray(state.participants) ? state.participants.length : 0;
-        const isAdminJoin = String(ws.meta.role || "") === "admin";
+        const isAdminJoin = isAdminRole(ws.meta.role);
         if (!isAdminJoin && participantsCount >= settings.maxRoomUsers) {
           ws.send(JSON.stringify({ type: 'error', room: ws.meta.room, error: `room is full (${settings.maxRoomUsers})` }));
           return;
@@ -1258,6 +1259,10 @@ async function ensureAdminUser() {
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
   const adminUsername = process.env.ADMIN_USERNAME || "admin";
+  const requestedAdminRole = String(process.env.ADMIN_ROLE || 'super-admin').trim().toLowerCase();
+  const adminRole = ['super-admin', 'ops-admin', 'admin'].includes(requestedAdminRole)
+    ? requestedAdminRole
+    : 'super-admin';
 
   // If explicit admin credentials provided via env, use them.
   if (adminEmail && adminPassword) {
@@ -1265,8 +1270,8 @@ async function ensureAdminUser() {
     const existing = await getUserByEmail(normalizedEmail);
     if (!existing) {
       const passwordHash = await hashPassword(adminPassword);
-      await insertUser(normalizedEmail, adminUsername, passwordHash, "admin");
-      console.log("Seeded admin user from ADMIN_EMAIL/ADMIN_PASSWORD.");
+      await insertUser(normalizedEmail, adminUsername, passwordHash, adminRole);
+      console.log(`Seeded ${adminRole} user from ADMIN_EMAIL/ADMIN_PASSWORD.`);
     }
     return;
   }
@@ -1279,8 +1284,8 @@ async function ensureAdminUser() {
       const fallbackEmail = 'admin@local';
       const fallbackPassword = 'admin';
       const passwordHash = await hashPassword(fallbackPassword);
-      await insertUser(fallbackEmail, adminUsername, passwordHash, 'admin');
-      console.log(`Seeded default admin user: ${fallbackEmail} / ${fallbackPassword}`);
+      await insertUser(fallbackEmail, adminUsername, passwordHash, 'super-admin');
+      console.log(`Seeded default super-admin user: ${fallbackEmail} / ${fallbackPassword}`);
     }
   } catch (e) {
     // ignore errors seeding dev admin

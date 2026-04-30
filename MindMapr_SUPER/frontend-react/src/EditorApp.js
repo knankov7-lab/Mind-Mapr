@@ -543,7 +543,8 @@ export default function EditorApp() {
     setJoinRequests((prev) => prev.filter((item) => item.requestId !== requestId));
   }, [showToast]);
 
-  const canManageGuests = isAuthenticated && (myRole === 'owner' || myRole === 'admin');
+  const isAdminLevelRole = ['admin', 'super-admin', 'ops-admin'].includes(String(myRole || '').toLowerCase());
+  const canManageGuests = isAuthenticated && (myRole === 'owner' || isAdminLevelRole);
 
   const manageRoomGuest = useCallback((guest, action, role = 'viewer') => {
     if (!canManageGuests) return;
@@ -1891,7 +1892,7 @@ export default function EditorApp() {
             ) : null}
           </div>
 
-          {isAuthenticated && (myRole === 'owner' || myRole === 'admin') && joinRequests.length > 0 ? (
+          {isAuthenticated && (myRole === 'owner' || isAdminLevelRole) && joinRequests.length > 0 ? (
             <div className="section">
               <h3>Заявки за достъп</h3>
               <div className="col">

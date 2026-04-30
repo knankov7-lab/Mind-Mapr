@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
+const { requirePermission } = require('./auth');
 const {
   run,
   get,
   all,
   exec,
+  getUserById,
+  updateUserRole,
   listAiExamples,
   insertAiExample,
   deleteAiExampleById,
@@ -44,15 +47,49 @@ router.use(async (_req, _res, next) => {
 });
 
 // List users
-router.get('/users', async (req, res) => {
+router.get('/users', requirePermission('users.read'), async (req, res) => {
   try {
     const rows = await all('SELECT id, email, username, role, created_at FROM users ORDER BY id DESC');
     res.json({ users: rows });
   } catch (e) { res.status(500).json({ error: 'Failed to list users' }); }
 });
 
+// Update user role
+router.put('/users/:id/role', requirePermission('users.manage'), async (req, res) => {
+  const userId = Number(req.params.id);
+  const role = String(req.body?.role || '').trim().toLowerCase();
+  const allowedRoles = ['user', 'ops-admin', 'super-admin', 'admin'];
+
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(400).json({ error: 'invalid user id' });
+  }
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ error: 'invalid role' });
+  }
+  if (Number(req.user?.id) === userId) {
+    return res.status(400).json({ error: 'cannot change own role from admin panel' });
+  }
+  const actorRole = String(req.user?.role || '').toLowerCase();
+  if (actorRole === 'ops-admin' && ['super-admin', 'admin'].includes(role)) {
+    return res.status(403).json({ error: 'ops-admin cannot assign super-admin/admin roles' });
+  }
+
+  try {
+    const target = await getUserById(userId);
+    if (!target) return res.status(404).json({ error: 'user not found' });
+    await updateUserRole(userId, role);
+    try {
+      await insertLog(req.user?.id ?? null, 'admin_user_set_role', { userId, role }, req.ip);
+    } catch {}
+    const updated = await getUserById(userId);
+    res.json({ ok: true, user: updated ? { id: updated.id, email: updated.email, username: updated.username, role: updated.role } : null });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update user role' });
+  }
+});
+
 // List rooms
-router.get('/rooms', async (req, res) => {
+router.get('/rooms', requirePermission('rooms.read'), async (req, res) => {
   try {
     const rows = await all(`
       SELECT
@@ -98,7 +135,7 @@ router.get('/rooms', async (req, res) => {
 });
 
 // List all saves (admin only)
-router.get('/saves', async (_req, res) => {
+router.get('/saves', requirePermission('saves.read'), async (_req, res) => {
   try {
     const rows = await all(`
       SELECT
@@ -120,7 +157,7 @@ router.get('/saves', async (_req, res) => {
 });
 
 // Approve room (mark public)
-router.post('/rooms/:room/approve', async (req, res) => {
+router.post('/rooms/:room/approve', requirePermission('rooms.approve'), async (req, res) => {
   const room = req.params.room;
   try {
     await run(
@@ -136,7 +173,7 @@ router.post('/rooms/:room/approve', async (req, res) => {
 });
 
 // Reject room from public approval flow
-router.post('/rooms/:room/reject', async (req, res) => {
+router.post('/rooms/:room/reject', requirePermission('rooms.approve'), async (req, res) => {
   const room = req.params.room;
   try {
     await run(
@@ -152,7 +189,7 @@ router.post('/rooms/:room/reject', async (req, res) => {
 });
 
 // Delete room and its saves
-router.delete('/rooms/:room', async (req, res) => {
+router.delete('/rooms/:room', requirePermission('rooms.delete'), async (req, res) => {
   const room = req.params.room;
   try {
     await run('DELETE FROM saves WHERE room_id = ?', [room]);
@@ -165,7 +202,7 @@ router.delete('/rooms/:room', async (req, res) => {
 });
 
 // Logs (admin only)
-router.get('/logs', async (req, res) => {
+router.get('/logs', requirePermission('logs.read'), async (req, res) => {
   try {
     const limit = req.query.limit;
     const userId = req.query.userId;
@@ -182,7 +219,7 @@ router.get('/logs', async (req, res) => {
 });
 
 // Stats: active users (count), popular maps, keywords
-router.get('/stats', async (req, res) => {
+router.get('/stats', requirePermission('stats.read'), async (req, res) => {
   try {
     const usersCountRow = await get('SELECT COUNT(1) as cnt FROM users');
     const usersCount = usersCountRow?.cnt || 0;
@@ -210,7 +247,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // Settings endpoints
-router.get('/settings', async (req, res) => {
+router.get('/settings', requirePermission('settings.read'), async (req, res) => {
   try {
     const rows = await all('SELECT key, value FROM settings');
     const obj = {};
@@ -219,7 +256,7 @@ router.get('/settings', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Failed to load settings' }); }
 });
 
-router.put('/settings', async (req, res) => {
+router.put('/settings', requirePermission('settings.write'), async (req, res) => {
   try {
     const entries = req.body || {};
     const keys = Object.keys(entries);
