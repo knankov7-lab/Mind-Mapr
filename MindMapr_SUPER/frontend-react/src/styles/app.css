@@ -359,6 +359,29 @@ kbd{
   transition: width .22s ease;
 }
 
+.tutorialStepNav{
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tutorialStepChip{
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tutorialStepChip.active{
+  border-color: rgba(124,92,255,.72);
+  background: linear-gradient(135deg, rgba(124,92,255,.82), rgba(38,209,167,.55));
+}
+
 .tutorialBody{
   margin: 18px 0 12px 0;
   font-size: 17px;
@@ -379,6 +402,28 @@ kbd{
   padding: 10px 12px;
   color: var(--text);
   font-size: 14px;
+}
+
+.tutorialShortcutGrid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tutorialShortcutItem{
+  border-radius: 12px;
+  border: 1px solid rgba(38,209,167,.28);
+  background: rgba(38,209,167,.10);
+  color: #d9fff6;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.tutorialHint{
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .tutorialActions{
@@ -403,6 +448,10 @@ kbd{
 
   .tutorialBody{
     font-size: 15px;
+  }
+
+  .tutorialShortcutGrid{
+    grid-template-columns: 1fr;
   }
 
   .tutorialActions{

@@ -95,23 +95,78 @@ export default function EditorApp() {
   const onboardingSteps = useMemo(() => [
     {
       title: "Добре дошъл в MindMapr",
-      body: "Това е кратък тур за първия ти вход. След 1 минута ще знаеш как да правиш карта и да работиш с екип.",
-      points: ["Можеш да го пропуснеш по всяко време.", "Ще се покаже само веднъж за този профил."]
+      body: "Това е разширен стартов тур. Ще минем през целия поток: проект, редакция, споделяне, история и импорт/експорт.",
+      points: [
+        "Можеш да прекъснеш с Пропусни и да продължиш по-късно.",
+        "Турът се показва автоматично само при първи вход.",
+        "Може да го стартираш отново от секцията Профил."
+      ],
+      shortcuts: ["Esc: затвори тура", "← / →: предишна или следваща стъпка"]
     },
     {
-      title: "Създай личен проект",
-      body: "Използвай бутона „Мой проект“, за да получиш собствена стая. После натисни „Запази“, за да запишеш картата в базата.",
-      points: ["Личният room е уникален за твоя профил.", "Записът изисква да си влязъл в системата."]
+      title: "1) Настрой стаята",
+      body: "Горе в секцията „Стая за екипна работа“ избираш room-id. Това е общото пространство за съвместна работа.",
+      points: [
+        "Смени room-id, за да преминеш в друга карта.",
+        "С „Копирай линк“ пращаш точната стая на екипа.",
+        "Името/никът се вижда в чата и присъствието."
+      ]
     },
     {
-      title: "Редактирай бързо",
-      body: "Добавяй идеи с Ctrl+K, свързвай 2 избрани възела с бутона „Свържи“, и ползвай десен клик за форма/цвят/изтриване.",
-      points: ["F2 преименува избран възел.", "Delete трие избраните възли или връзки."]
+      title: "2) Създай личен проект",
+      body: "Ползвай „Мой проект“ или „Нов личен проект“, за да създадеш лична стая с уникален идентификатор.",
+      points: [
+        "Това е добрата отправна точка за всяка нова карта.",
+        "После натисни „Запази“, за да запишеш snapshot в базата.",
+        "Без вход не може постоянен запис."
+      ]
     },
     {
-      title: "Покани екипа",
-      body: "Копирай линка на стаята и го изпрати. При частни стаи ръководителят одобрява достъпа като Viewer или Editor.",
-      points: ["Viewer вижда картата.", "Editor може да редактира в реално време."]
+      title: "3) Бързо редактиране",
+      body: "Работиш директно на canvas: добавяш възли, местиш ги и правиш връзки между тях.",
+      points: [
+        "Десен клик върху възел: преименуване, форма, цвят, изтриване.",
+        "„Свържи избраните 2 възела“ прави ръчна връзка.",
+        "„Авто връзка към главната тема“ ускорява структурата."
+      ],
+      shortcuts: ["Ctrl+K: нова идея", "F2: преименувай избрания възел", "Delete: изтрий избраното"]
+    },
+    {
+      title: "4) Колаборация и роли",
+      body: "Сподели линка към стаята. За частни стаи достъпът минава през одобрение от ръководител на стаята.",
+      points: [
+        "Viewer: вижда карта, няма право на редакция.",
+        "Editor: пълна редакция в реално време.",
+        "Owner/Admin: вижда заявки и решава одобрение/отказ."
+      ]
+    },
+    {
+      title: "5) Запис, история и възстановяване",
+      body: "Използвай „Запази/Зареди“ за текущ snapshot, „Списък карти“ за личните карти и „История“ за версии.",
+      points: [
+        "Историята помага да се върнеш към предишна версия.",
+        "При възстановяване се изпраща актуализация към участниците.",
+        "„Онлайн карти“ показва публично одобрени карти."
+      ]
+    },
+    {
+      title: "6) Импорт и експорт",
+      body: "Можеш да изнасяш карта като JSON или PNG QR и после да я върнеш с Import.",
+      points: [
+        "JSON е най-надежден за големи карти.",
+        "PNG QR е удобен за споделяне в презентации.",
+        "При проблем с голям QR, използвай Export JSON."
+      ]
+    },
+    {
+      title: "Готово: стартов checklist",
+      body: "Преди да започнеш реална работа, мини през тези 4 бързи точки.",
+      points: [
+        "Създай или избери правилния room-id.",
+        "Направи първи запис с „Запази“.",
+        "Покани екипа с „Копирай линк“.",
+        "Пусни турa отново от Профил, ако нещо е неясно."
+      ]
     }
   ], []);
 
@@ -277,6 +332,13 @@ export default function EditorApp() {
   const prevOnboardingStep = useCallback(() => {
     setOnboardingStep((prev) => Math.max(0, prev - 1));
   }, []);
+
+  const openOnboardingTutorial = useCallback((step = 0) => {
+    const index = Number.isFinite(Number(step)) ? Number(step) : 0;
+    const clamped = Math.max(0, Math.min(onboardingSteps.length - 1, index));
+    setOnboardingStep(clamped);
+    setShowOnboarding(true);
+  }, [onboardingSteps.length]);
 
   useEffect(() => {
     const bootKey = isAuthenticated && onboardingStorageKey ? onboardingStorageKey : null;
@@ -1680,6 +1742,9 @@ export default function EditorApp() {
                 <button className="btn primary" onClick={() => startPersonalProject(user)}>
                   🆕 Нов личен проект
                 </button>
+                <button className="btn ghost" onClick={() => openOnboardingTutorial(0)}>
+                  📘 Tutorial
+                </button>
                 <button className="btn ghost" onClick={logout}>
                   Изход
                 </button>
@@ -2116,6 +2181,19 @@ export default function EditorApp() {
               <div className="tutorialProgressFill" style={{ width: `${onboardingProgress}%` }} />
             </div>
 
+            <div className="tutorialStepNav">
+              {onboardingSteps.map((step, index) => (
+                <button
+                  key={step.title}
+                  type="button"
+                  className={`tutorialStepChip ${index === onboardingStep ? 'active' : ''}`}
+                  onClick={() => openOnboardingTutorial(index)}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+
             <p className="tutorialBody">{activeOnboardingStep?.body}</p>
 
             <div className="tutorialTips">
@@ -2123,6 +2201,16 @@ export default function EditorApp() {
                 <div key={tip} className="tutorialTipItem">• {tip}</div>
               ))}
             </div>
+
+            {(activeOnboardingStep?.shortcuts || []).length > 0 ? (
+              <div className="tutorialShortcutGrid">
+                {activeOnboardingStep.shortcuts.map((item) => (
+                  <div key={item} className="tutorialShortcutItem">{item}</div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="tutorialHint">Съвет: можеш да използваш цифрите горе, за да прескачаш между стъпките.</div>
 
             <div className="tutorialActions">
               <button className="btn ghost" disabled={onboardingStep === 0} onClick={prevOnboardingStep}>Назад</button>
