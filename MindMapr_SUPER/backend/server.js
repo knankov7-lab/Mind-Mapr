@@ -18,6 +18,7 @@ const {
   requestPasswordReset,
   resetPassword,
   verifyToken,
+  isAdminRole,
   isAdminUserLike,
 } = require("./auth");
 // AI seeding removed
