@@ -17,7 +17,7 @@ const {
   requestPasswordReset,
   resetPassword,
   verifyToken,
-  isAdminRole,
+  isAdminUserLike,
 } = require("./auth");
 // AI seeding removed
 const {
@@ -160,7 +160,7 @@ async function logAction(req, action, details) {
 }
 
 function isAdminUser(req) {
-  return isAdminRole(req.user?.role);
+  return isAdminUserLike(req.user);
 }
 
 async function canAccessRoom(req, roomId, { allowPublicRead = false } = {}) {
@@ -944,7 +944,7 @@ wss.on("connection", (ws) => {
       try {
         const settings = await getRuntimeSettings();
         const participantsCount = Array.isArray(state.participants) ? state.participants.length : 0;
-        const isAdminJoin = isAdminRole(ws.meta.role);
+        const isAdminJoin = isAdminUserLike(ws.meta.user || { role: ws.meta.role, email: null });
         if (!isAdminJoin && participantsCount >= settings.maxRoomUsers) {
           ws.send(JSON.stringify({ type: 'error', room: ws.meta.room, error: `room is full (${settings.maxRoomUsers})` }));
           return;

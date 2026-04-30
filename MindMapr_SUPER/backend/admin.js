@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requirePermission } = require('./auth');
+const { requirePermission, isPrimaryAdminUser } = require('./auth');
 const {
   run,
   get,
@@ -69,14 +69,24 @@ router.put('/users/:id/role', requirePermission('users.manage'), async (req, res
   if (Number(req.user?.id) === userId) {
     return res.status(400).json({ error: 'cannot change own role from admin panel' });
   }
-  const actorRole = String(req.user?.role || '').toLowerCase();
-  if (actorRole === 'ops-admin' && ['super-admin', 'admin'].includes(role)) {
-    return res.status(403).json({ error: 'ops-admin cannot assign super-admin/admin roles' });
-  }
 
   try {
     const target = await getUserById(userId);
     if (!target) return res.status(404).json({ error: 'user not found' });
+
+    const actorIsPrimary = isPrimaryAdminUser(req.user);
+    const targetRole = String(target.role || 'user').toLowerCase();
+    const highLevelRoles = ['super-admin', 'admin'];
+    const touchesHighLevelRole = highLevelRoles.includes(targetRole) || highLevelRoles.includes(role);
+    if (touchesHighLevelRole && !actorIsPrimary) {
+      return res.status(403).json({ error: 'only primary admin can manage super-admin/admin accounts' });
+    }
+
+    const actorRole = String(req.user?.role || '').toLowerCase();
+    if (actorRole === 'ops-admin' && ['super-admin', 'admin'].includes(role)) {
+      return res.status(403).json({ error: 'ops-admin cannot assign super-admin/admin roles' });
+    }
+
     await updateUserRole(userId, role);
     try {
       await insertLog(req.user?.id ?? null, 'admin_user_set_role', { userId, role }, req.ip);

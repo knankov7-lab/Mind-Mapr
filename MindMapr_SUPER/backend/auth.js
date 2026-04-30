@@ -15,6 +15,7 @@ const {
 const { toSofiaSqlString } = require("./time");
 
 const JWT_SECRET = process.env.JWT_SECRET || "mindmapr-dev-secret";
+const PRIMARY_ADMIN_EMAIL = String(process.env.PRIMARY_ADMIN_EMAIL || "admin@example.com").trim().toLowerCase();
 
 const ROLE_PERMISSIONS = {
   user: [],
@@ -60,6 +61,10 @@ function normalizeRole(role) {
   return String(role || "user").trim().toLowerCase();
 }
 
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
 function getPermissionsForRole(role) {
   const normalized = normalizeRole(role);
   const list = ROLE_PERMISSIONS[normalized] || ROLE_PERMISSIONS.user;
@@ -71,8 +76,19 @@ function isAdminRole(role) {
   return normalized === "admin" || normalized === "super-admin" || normalized === "ops-admin";
 }
 
+function isPrimaryAdminUser(user) {
+  if (!user) return false;
+  return normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL;
+}
+
+function isAdminUserLike(user) {
+  if (!user) return false;
+  return isPrimaryAdminUser(user) || isAdminRole(user.role);
+}
+
 function hasPermission(user, permission) {
   if (!user || !permission) return false;
+  if (isPrimaryAdminUser(user)) return true;
   const normalizedPermission = String(permission).trim();
   if (!normalizedPermission) return false;
   const permissions = getPermissionsForRole(user.role);
@@ -127,7 +143,7 @@ function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.user || !isAdminRole(req.user.role)) {
+  if (!req.user || !isAdminUserLike(req.user)) {
     return res.status(403).json({ error: "Admin access required" });
   }
   next();
@@ -135,7 +151,7 @@ function requireAdmin(req, res, next) {
 
 function requirePermission(permission) {
   return (req, res, next) => {
-    if (!req.user || !isAdminRole(req.user.role)) {
+    if (!req.user || !isAdminUserLike(req.user)) {
       return res.status(403).json({ error: "Admin access required" });
     }
     if (!hasPermission(req.user, permission)) {
@@ -304,6 +320,8 @@ module.exports = {
   hashPassword,
   verifyToken,
   isAdminRole,
+  isPrimaryAdminUser,
+  isAdminUserLike,
   hasPermission,
   getPermissionsForRole,
   requirePermission,
