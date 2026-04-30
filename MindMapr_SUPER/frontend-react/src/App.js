@@ -15,6 +15,13 @@ function applyTheme(theme) {
   document.body.classList.add(`theme-${next}`);
 }
 
+// Wake Render backend on app load to minimize cold-start CORS errors.
+async function wakeBackend() {
+  try {
+    await api.get("/health");
+  } catch (_) {}
+}
+
 export default function App() {
   const syncTheme = useCallback(async () => {
     try {
@@ -26,7 +33,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    syncTheme();
+    wakeBackend().then(() => syncTheme());
   }, [syncTheme]);
 
   useEffect(() => {

@@ -82,6 +82,11 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: "2mb" }));
 
+// Health / keep-alive endpoint
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true, ts: Date.now() });
+});
+
 app.use(authMiddleware);
 
 const SETTINGS_TTL_MS = 5000;
