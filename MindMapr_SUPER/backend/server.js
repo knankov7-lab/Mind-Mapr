@@ -382,7 +382,21 @@ app.get("/api/rooms/meta", guestLimiter, async (req, res) => {
 
   try {
     const access = await canAccessRoom(req, room, { allowPublicRead: true });
-    if (!access.ok) return res.status(access.status).json({ error: access.error });
+    if (!access.ok) {
+      if (access.status === 404) {
+        return res.json({
+          room_id: room,
+          name: "",
+          description: "",
+          tags: "",
+          public: 0,
+          team_id: null,
+          created_by: null,
+          created_at: null,
+        });
+      }
+      return res.status(access.status).json({ error: access.error });
+    }
     const rm = access.room;
 
     res.json({
@@ -679,7 +693,10 @@ app.get('/api/comments', guestLimiter, async (req, res) => {
   if (!room) return res.status(400).json({ error: 'room required' });
   try {
     const access = await canAccessRoom(req, room, { allowPublicRead: true });
-    if (!access.ok) return res.status(access.status).json({ error: access.error });
+    if (!access.ok) {
+      if (access.status === 404) return res.json({ room, comments: [] });
+      return res.status(access.status).json({ error: access.error });
+    }
     const rows = await listCommentsForRoom(room, req.query.limit);
     res.json({ room, comments: rows });
   } catch (_e) {
