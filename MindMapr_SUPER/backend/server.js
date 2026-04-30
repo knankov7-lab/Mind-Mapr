@@ -219,6 +219,58 @@ async function accessForRoomAndUser(roomId, user, { allowPublicRead = false } = 
   return { ok: false, status: 403, error: 'forbidden', room: rm };
 }
 
+async function canUserApproveRoomRequests(roomInfo, user) {
+  if (!roomInfo || !user) return false;
+
+  const isAdmin = String(user.role || '').toLowerCase() === 'admin';
+  if (isAdmin) return true;
+
+  const userId = Number(user.id);
+  if (!Number.isFinite(userId)) return false;
+
+  if (Number(roomInfo.created_by) === userId) return true;
+
+  if (roomInfo.team_id != null) {
+    const teamMember = await getTeamMember(Number(roomInfo.team_id), userId);
+    if (teamMember && String(teamMember.role_in_team || '').toLowerCase() === 'owner') return true;
+  }
+
+  const roomMember = await getRoomMember(roomInfo.room_id, userId);
+  if (roomMember && String(roomMember.role_in_room || '').toLowerCase() === 'owner') return true;
+
+  return false;
+}
+
+async function getRoomApproverUserIds(roomInfo) {
+  if (!roomInfo) return [];
+  const ids = new Set();
+
+  const creatorId = Number(roomInfo.created_by);
+  if (Number.isFinite(creatorId)) ids.add(creatorId);
+
+  const roomOwners = await all(
+    'SELECT user_id FROM room_members WHERE room_id = ? AND role_in_room = ?',
+    [String(roomInfo.room_id), 'owner']
+  );
+  for (const row of roomOwners || []) {
+    const id = Number(row?.user_id);
+    if (Number.isFinite(id)) ids.add(id);
+  }
+
+  if (roomInfo.team_id != null) {
+    const teamOwners = await all(
+      'SELECT user_id FROM team_members WHERE team_id = ? AND role_in_team = ?',
+      [Number(roomInfo.team_id), 'owner']
+    );
+    for (const row of teamOwners || []) {
+      const id = Number(row?.user_id);
+      if (Number.isFinite(id)) ids.add(id);
+    }
+  }
+
+  return Array.from(ids);
+}
+
 // Списък с всички карти (saves)
 app.get("/api/maps/list", requireAuth, async (req, res) => {
   try {
