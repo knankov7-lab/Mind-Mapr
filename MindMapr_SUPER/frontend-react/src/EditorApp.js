@@ -75,7 +75,7 @@ export default function EditorApp() {
   const [showHistory, setShowHistory] = useState(false);
   
 
-  const { user, token, isAuthenticated, isAdmin, login, register, logout } = useAuth();
+  const { user, token, isAuthenticated, isAdmin, login, register, logout, changePassword } = useAuth();
   const [room, setRoom] = useState(getRoomFromUrl());
   const [name, setName] = useState(() => localStorage.getItem("mm_name") || "guest");
   const [status, setStatus] = useState("offline"); // online/offline
@@ -84,8 +84,12 @@ export default function EditorApp() {
   const [toast, setToast] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const renameModalInputRef = useRef(null);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const [authForm, setAuthForm] = useState({ email: "", password: "", username: "" });
   const [authError, setAuthError] = useState("");
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -1664,6 +1668,51 @@ export default function EditorApp() {
     setAuthForm((prev) => ({ ...prev, password: "" }));
   }, [authForm.email, authForm.password, authForm.username, register, showToast, startPersonalProject]);
 
+  const openPasswordModal = useCallback(() => {
+    setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    setPasswordError('');
+    setShowPasswordModal(true);
+  }, []);
+
+  const closePasswordModal = useCallback(() => {
+    setShowPasswordModal(false);
+    setPasswordBusy(false);
+    setPasswordError('');
+  }, []);
+
+  const submitPasswordChange = useCallback(async () => {
+    if (passwordBusy) return;
+    const oldPassword = String(passwordForm.oldPassword || '');
+    const newPassword = String(passwordForm.newPassword || '');
+    const confirmPassword = String(passwordForm.confirmPassword || '');
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Попълни всички полета.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('Новата парола трябва да е поне 6 символа.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Потвърждението не съвпада.');
+      return;
+    }
+
+    setPasswordBusy(true);
+    setPasswordError('');
+    const result = await changePassword(oldPassword, newPassword);
+    setPasswordBusy(false);
+
+    if (!result.success) {
+      setPasswordError(result.error || 'Грешка при смяна на парола.');
+      return;
+    }
+
+    setShowPasswordModal(false);
+    showToast('Паролата е сменена успешно.');
+  }, [passwordBusy, passwordForm, changePassword, showToast]);
+
   // AI features removed: runAI and generateMindMap disabled
 
   const shareLink = useMemo(() => {
@@ -1800,6 +1849,9 @@ export default function EditorApp() {
                 </button>
                 <button className="btn ghost" onClick={() => openOnboardingTutorial(0)}>
                   📘 Tutorial
+                </button>
+                <button className="btn ghost" onClick={openPasswordModal}>
+                  🔐 Смени парола
                 </button>
                 <button className="btn ghost" onClick={logout}>
                   Изход
@@ -2270,6 +2322,47 @@ export default function EditorApp() {
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button className="btn ghost" onClick={cancelRenameSelected}>Отмени</button>
                 <button className="btn primary" onClick={commitRenameSelected}>OK</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showPasswordModal ? (
+        <div className="page-overlay" style={{ zIndex: 1450 }} onMouseDown={closePasswordModal}>
+          <div className="page" onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(520px, 92vw)' }}>
+            <h3 style={{ marginBottom: 10 }}>Смяна на парола</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input
+                className="input"
+                type="password"
+                value={passwordForm.oldPassword}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, oldPassword: e.target.value }))}
+                placeholder="Текуща парола"
+              />
+              <input
+                className="input"
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                placeholder="Нова парола"
+              />
+              <input
+                className="input"
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                placeholder="Потвърди новата парола"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitPasswordChange();
+                  if (e.key === 'Escape') closePasswordModal();
+                }}
+              />
+              {passwordError ? <div className="small" style={{ color: '#ff8f8f' }}>{passwordError}</div> : null}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn ghost" onClick={closePasswordModal} disabled={passwordBusy}>Отмени</button>
+                <button className="btn primary" onClick={submitPasswordChange} disabled={passwordBusy}>
+                  {passwordBusy ? 'Запазване...' : 'Смени парола'}
+                </button>
               </div>
             </div>
           </div>

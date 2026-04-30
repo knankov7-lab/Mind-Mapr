@@ -76,6 +76,15 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const changePassword = async (oldPassword, newPassword) => {
+    try {
+      await authAPI.changePassword(oldPassword, newPassword);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.error || 'Password change failed' };
+    }
+  };
+
   const normalizedRole = String(user?.role || '').toLowerCase();
   const isAdmin = ['admin', 'super-admin', 'ops-admin'].includes(normalizedRole);
   const isSuperAdmin = normalizedRole === 'super-admin' || normalizedRole === 'admin';
@@ -90,6 +99,7 @@ export const AuthProvider = ({ children }) => {
       login,
       register,
       logout,
+      changePassword,
       isAdmin,
       isSuperAdmin,
       isOpsAdmin,
