@@ -226,6 +226,32 @@ export default function EditorApp() {
   const [commentText, setCommentText] = useState('');
   const [commentNodeId, setCommentNodeId] = useState('');
 
+  const sendJoin = useCallback((nextRoom = room) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== 1) return;
+    ws.send(JSON.stringify({ type: "join", room: nextRoom, name, token: token || '' }));
+  }, [room, name, token]);
+
+  useEffect(() => {
+    localStorage.setItem("mm_name", name);
+  }, [name]);
+  useEffect(() => {
+    setRoomInUrl(room);
+  }, [room]);
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setClockTime(getSofiaNowTime());
+    }, 1000);
+    return () => window.clearInterval(timerId);
+  }, []);
+
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    window.clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = window.setTimeout(() => setToast(""), 2500);
+  }, []);
+
   const finishOnboarding = useCallback((showDoneToast = true) => {
     if (onboardingStorageKey) {
       localStorage.setItem(onboardingStorageKey, '1');
@@ -280,32 +306,6 @@ export default function EditorApp() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showOnboarding, nextOnboardingStep, prevOnboardingStep, skipOnboarding]);
-
-  const sendJoin = useCallback((nextRoom = room) => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== 1) return;
-    ws.send(JSON.stringify({ type: "join", room: nextRoom, name, token: token || '' }));
-  }, [room, name, token]);
-
-  useEffect(() => {
-    localStorage.setItem("mm_name", name);
-  }, [name]);
-  useEffect(() => {
-    setRoomInUrl(room);
-  }, [room]);
-
-  useEffect(() => {
-    const timerId = window.setInterval(() => {
-      setClockTime(getSofiaNowTime());
-    }, 1000);
-    return () => window.clearInterval(timerId);
-  }, []);
-
-  const showToast = useCallback((msg) => {
-    setToast(msg);
-    window.clearTimeout(pendingTimerRef.current);
-    pendingTimerRef.current = window.setTimeout(() => setToast(""), 2500);
-  }, []);
 
   const resetEditorForRoom = useCallback((nextRoom, message) => {
     const starter = normalizeNodes(createStarterNodes());
