@@ -74,6 +74,19 @@ const {
 } = require("./db");
 
 const app = express();
+
+// Respect X-Forwarded-For when running behind a reverse proxy so rate limits
+// are applied per real client IP, not per proxy IP.
+const trustProxyRaw = String(process.env.TRUST_PROXY || "1").trim().toLowerCase();
+if (trustProxyRaw === "true" || trustProxyRaw === "1") {
+  app.set("trust proxy", 1);
+} else if (trustProxyRaw === "false" || trustProxyRaw === "0") {
+  app.set("trust proxy", false);
+} else {
+  const parsedTrustProxy = Number(trustProxyRaw);
+  app.set("trust proxy", Number.isFinite(parsedTrustProxy) ? parsedTrustProxy : 1);
+}
+
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -317,7 +330,7 @@ app.delete("/api/maps/:id", requireAuth, async (req, res) => {
 
 const guestLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 60,
   message: { error: "Too many requests from this IP, please try again later." },
   skip: (req) => !!req.user,
 });
