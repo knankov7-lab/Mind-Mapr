@@ -70,11 +70,31 @@ function buildPersonalRoomId(userData) {
   return `${base}-${Date.now().toString(36)}-${nanoid(6).toLowerCase()}`;
 }
 
+const CHAT_FLOATING_POSITION_KEY = "mindmapr.chatFloating.position";
+
 function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participants, formatSofiaTime }) {
   const [open, setOpen] = React.useState(false);
   const [unread, setUnread] = React.useState(0);
+  const [position, setPosition] = React.useState(() => {
+    if (typeof window === 'undefined') return { x: 24, y: 88 };
+    try {
+      const raw = window.localStorage.getItem(CHAT_FLOATING_POSITION_KEY);
+      if (!raw) return { x: 24, y: 88 };
+      const parsed = JSON.parse(raw);
+      const x = Number(parsed?.x);
+      const y = Number(parsed?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return { x: 24, y: 88 };
+      return { x, y };
+    } catch {
+      return { x: 24, y: 88 };
+    }
+  });
+  const [dragging, setDragging] = React.useState(false);
+  const containerRef = React.useRef(null);
   const bodyRef = React.useRef(null);
   const prevLen = React.useRef(chatMessages.length);
+  const dragRef = React.useRef({ startX: 0, startY: 0, originX: 24, originY: 88 });
+  const suppressToggleRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!open && chatMessages.length > prevLen.current) {
@@ -91,19 +111,106 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
     }
   }, [open, chatMessages.length]);
 
+  const clampPosition = React.useCallback((nextPosition) => {
+    const width = containerRef.current?.offsetWidth || (open ? 320 : 48);
+    const height = containerRef.current?.offsetHeight || (open ? 420 : 48);
+    const maxX = Math.max(8, window.innerWidth - width - 8);
+    const maxY = Math.max(8, window.innerHeight - height - 8);
+
+    return {
+      x: Math.min(Math.max(8, nextPosition.x), maxX),
+      y: Math.min(Math.max(8, nextPosition.y), maxY),
+    };
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!dragging) return undefined;
+
+    function onMouseMove(event) {
+      const deltaX = event.clientX - dragRef.current.startX;
+      const deltaY = event.clientY - dragRef.current.startY;
+      if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+        suppressToggleRef.current = true;
+      }
+      setPosition(clampPosition({
+        x: dragRef.current.originX + deltaX,
+        y: dragRef.current.originY + deltaY,
+      }));
+    }
+
+    function onMouseUp() {
+      setDragging(false);
+    }
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [clampPosition, dragging]);
+
+  React.useEffect(() => {
+    function onResize() {
+      setPosition((current) => clampPosition(current));
+    }
+
+    window.addEventListener('resize', onResize);
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, [clampPosition]);
+
+  React.useEffect(() => {
+    setPosition((current) => clampPosition(current));
+  }, [clampPosition, open]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(CHAT_FLOATING_POSITION_KEY, JSON.stringify(position));
+    } catch {
+      // ignore storage failures
+    }
+  }, [position]);
+
+  const startDrag = React.useCallback((event) => {
+    event.preventDefault();
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: position.x,
+      originY: position.y,
+    };
+    suppressToggleRef.current = false;
+    setDragging(true);
+  }, [position.x, position.y]);
+
+  const toggleOpen = React.useCallback((event) => {
+    if (suppressToggleRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressToggleRef.current = false;
+      return;
+    }
+    setOpen((value) => !value);
+  }, []);
+
   return (
-    <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 800, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+    <div ref={containerRef} style={{ position: 'fixed', top: position.y, left: position.x, zIndex: 800, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
       {open && (
         <div style={{
           width: 320, background: 'rgba(14,20,40,.97)', border: '1px solid rgba(124,92,255,.35)',
           borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,.45)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(124,92,255,.12)' }}>
+          <div
+            onMouseDown={startDrag}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(124,92,255,.12)', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+          >
             <span style={{ fontWeight: 700, color: '#dfe6ff', fontSize: 14 }}>💬 Чат на стаята</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <span style={{ fontSize: 12, opacity: .75 }}>{participants.length} онлайн</span>
-              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: '#aab4d4', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+              <button onMouseDown={(event) => event.stopPropagation()} onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: '#aab4d4', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
             </div>
           </div>
           {/* Messages */}
@@ -135,10 +242,11 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
       )}
       {/* Toggle button */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        onMouseDown={startDrag}
+        onClick={toggleOpen}
         style={{
           width: 48, height: 48, borderRadius: '50%', background: 'rgba(124,92,255,.85)',
-          border: '2px solid rgba(124,92,255,.5)', color: '#fff', fontSize: 20, cursor: 'pointer',
+          border: '2px solid rgba(124,92,255,.5)', color: '#fff', fontSize: 20, cursor: dragging ? 'grabbing' : 'grab',
           boxShadow: '0 4px 18px rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
         }}
         title="Чат"
