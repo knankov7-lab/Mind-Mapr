@@ -70,6 +70,90 @@ function buildPersonalRoomId(userData) {
   return `${base}-${Date.now().toString(36)}-${nanoid(6).toLowerCase()}`;
 }
 
+function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participants, formatSofiaTime }) {
+  const [open, setOpen] = React.useState(false);
+  const [unread, setUnread] = React.useState(0);
+  const bodyRef = React.useRef(null);
+  const prevLen = React.useRef(chatMessages.length);
+
+  React.useEffect(() => {
+    if (!open && chatMessages.length > prevLen.current) {
+      setUnread((u) => u + (chatMessages.length - prevLen.current));
+    }
+    prevLen.current = chatMessages.length;
+  }, [chatMessages.length, open]);
+
+  React.useEffect(() => {
+    if (open) {
+      setUnread(0);
+      // scroll to bottom
+      if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    }
+  }, [open, chatMessages.length]);
+
+  return (
+    <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 800, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+      {open && (
+        <div style={{
+          width: 320, background: 'rgba(14,20,40,.97)', border: '1px solid rgba(124,92,255,.35)',
+          borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,.45)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(124,92,255,.12)' }}>
+            <span style={{ fontWeight: 700, color: '#dfe6ff', fontSize: 14 }}>💬 Чат на стаята</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, opacity: .75 }}>{participants.length} онлайн</span>
+              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: '#aab4d4', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+            </div>
+          </div>
+          {/* Messages */}
+          <div ref={bodyRef} style={{ flex: 1, maxHeight: 260, minHeight: 120, overflowY: 'auto', padding: '10px 14px', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {chatMessages.length === 0 && <div style={{ opacity: .6, textAlign: 'center', marginTop: 20 }}>Няма съобщения още.</div>}
+            {chatMessages.map((m) => (
+              <div key={m.id || m.at || Math.random()} style={{ lineHeight: 1.5 }}>
+                <span style={{ opacity: .6, fontSize: 11 }}>[{formatSofiaTime(m.at)}]</span>{' '}
+                <b style={{ color: '#b9a8ff' }}>{m.name || 'guest'}:</b>{' '}
+                <span style={{ color: '#e4ecff' }}>{m.text}</span>
+              </div>
+            ))}
+          </div>
+          {/* Input */}
+          <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,.07)' }}>
+            <input
+              value={chatText}
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { sendChat(); } }}
+              placeholder="Съобщение…"
+              style={{ flex: 1, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.07)', color: '#e9eeff', padding: '8px 11px', fontSize: 13, outline: 'none' }}
+            />
+            <button
+              onClick={sendChat}
+              style={{ borderRadius: 10, background: 'rgba(124,92,255,.7)', color: '#fff', border: 'none', padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
+            >➤</button>
+          </div>
+        </div>
+      )}
+      {/* Toggle button */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: 48, height: 48, borderRadius: '50%', background: 'rgba(124,92,255,.85)',
+          border: '2px solid rgba(124,92,255,.5)', color: '#fff', fontSize: 20, cursor: 'pointer',
+          boxShadow: '0 4px 18px rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+        }}
+        title="Чат"
+      >
+        💬
+        {unread > 0 && (
+          <span style={{ position: 'absolute', top: -4, right: -4, background: '#ff4f6d', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+}
+
 export default function EditorApp() {
   const [showMapList, setShowMapList] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -2301,6 +2385,16 @@ export default function EditorApp() {
           ) : null}
 
           {toast ? <div className="toast">{toast}</div> : null}
+
+          {/* Floating chat panel */}
+          <ChatFloating
+            chatMessages={chatMessages}
+            chatText={chatText}
+            setChatText={setChatText}
+            sendChat={sendChat}
+            participants={participants}
+            formatSofiaTime={formatSofiaTime}
+          />
         </div>
       </div>
       {showRenameModal ? (
