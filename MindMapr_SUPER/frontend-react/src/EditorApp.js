@@ -74,6 +74,7 @@ const CHAT_FLOATING_POSITION_KEY = "mindmapr.chatFloating.position";
 
 function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participants, formatSofiaTime }) {
   const [open, setOpen] = React.useState(false);
+  const [panelRendered, setPanelRendered] = React.useState(false);
   const [unread, setUnread] = React.useState(0);
   const [position, setPosition] = React.useState(() => {
     if (typeof window === 'undefined') return { x: 24, y: 88 };
@@ -110,6 +111,19 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
       if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
   }, [open, chatMessages.length]);
+
+  React.useEffect(() => {
+    if (open) {
+      setPanelRendered(true);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setPanelRendered(false);
+    }, 240);
+
+    return () => window.clearTimeout(timer);
+  }, [open]);
 
   const clampPosition = React.useCallback((nextPosition) => {
     const width = containerRef.current?.offsetWidth || (open ? 320 : 48);
@@ -196,66 +210,75 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
   }, []);
 
   return (
-    <div ref={containerRef} style={{ position: 'fixed', top: position.y, left: position.x, zIndex: 800, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-      {open && (
-        <div style={{
-          width: 320, background: 'rgba(14,20,40,.97)', border: '1px solid rgba(124,92,255,.35)',
-          borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,.45)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        }}>
-          {/* Header */}
+    <div
+      ref={containerRef}
+      className="chatFloating"
+      style={{ top: position.y, left: position.x }}
+    >
+      {panelRendered && (
+        <div className={`chatFloatingPanel ${open ? 'is-open' : 'is-closing'}`}>
           <div
+            className={`chatFloatingHeader ${dragging ? 'is-dragging' : ''}`}
             onMouseDown={startDrag}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(124,92,255,.12)', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
           >
-            <span style={{ fontWeight: 700, color: '#dfe6ff', fontSize: 14 }}>💬 Чат на стаята</span>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={{ fontSize: 12, opacity: .75 }}>{participants.length} онлайн</span>
-              <button onMouseDown={(event) => event.stopPropagation()} onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: '#aab4d4', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+            <span className="chatFloatingTitle">💬 Чат на стаята</span>
+            <div className="chatFloatingHeaderMeta">
+              <span className="chatFloatingOnlineCount">{participants.length} онлайн</span>
+              <button
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={() => setOpen(false)}
+                className="chatFloatingCloseBtn"
+                type="button"
+              >
+                ✕
+              </button>
             </div>
           </div>
-          {/* Messages */}
-          <div ref={bodyRef} style={{ flex: 1, maxHeight: 'min(42vh, 360px)', minHeight: 120, overflowY: 'auto', padding: '10px 14px', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {chatMessages.length === 0 && <div style={{ opacity: .6, textAlign: 'center', marginTop: 20 }}>Няма съобщения още.</div>}
+
+          <div ref={bodyRef} className="chatFloatingBody">
+            {chatMessages.length === 0 && <div className="chatFloatingEmpty">Няма съобщения още.</div>}
             {chatMessages.map((m) => (
-              <div key={m.id || m.at || Math.random()} style={{ lineHeight: 1.5 }}>
-                <span style={{ opacity: .6, fontSize: 11 }}>[{formatSofiaTime(m.at)}]</span>{' '}
-                <b style={{ color: '#b9a8ff' }}>{m.name || 'guest'}:</b>{' '}
-                <span style={{ color: '#e4ecff' }}>{m.text}</span>
+              <div key={m.id || m.at || Math.random()} className="chatFloatingMessage">
+                <span className="chatFloatingMessageTime">[{formatSofiaTime(m.at)}]</span>{' '}
+                <b className="chatFloatingMessageAuthor">{m.name || 'guest'}:</b>{' '}
+                <span className="chatFloatingMessageText">{m.text}</span>
               </div>
             ))}
           </div>
-          {/* Input */}
-          <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,.07)' }}>
+
+          <div className="chatFloatingInputRow">
             <input
               value={chatText}
               onChange={(e) => setChatText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { sendChat(); } }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  sendChat();
+                }
+              }}
               placeholder="Съобщение…"
-              style={{ flex: 1, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.07)', color: '#e9eeff', padding: '8px 11px', fontSize: 13, outline: 'none' }}
+              className="chatFloatingInput"
             />
             <button
               onClick={sendChat}
-              style={{ borderRadius: 10, background: 'rgba(124,92,255,.7)', color: '#fff', border: 'none', padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
-            >➤</button>
+              className="chatFloatingSendBtn"
+              type="button"
+            >
+              ➤
+            </button>
           </div>
         </div>
       )}
-      {/* Toggle button */}
+
       <button
         onMouseDown={startDrag}
         onClick={toggleOpen}
-        style={{
-          width: 48, height: 48, borderRadius: '50%', background: 'rgba(124,92,255,.85)',
-          border: '2px solid rgba(124,92,255,.5)', color: '#fff', fontSize: 20, cursor: dragging ? 'grabbing' : 'grab',
-          boxShadow: '0 4px 18px rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
-        }}
+        className={`chatFloatingToggle ${dragging ? 'is-dragging' : ''}`}
         title="Чат"
+        type="button"
       >
         💬
         {unread > 0 && (
-          <span style={{ position: 'absolute', top: -4, right: -4, background: '#ff4f6d', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {unread > 9 ? '9+' : unread}
-          </span>
+          <span className="chatFloatingUnread">{unread > 9 ? '9+' : unread}</span>
         )}
       </button>
     </div>
