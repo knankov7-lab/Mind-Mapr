@@ -92,7 +92,7 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
   }, [open, chatMessages.length]);
 
   return (
-    <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 800, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+    <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 800, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
       {open && (
         <div style={{
           width: 320, background: 'rgba(14,20,40,.97)', border: '1px solid rgba(124,92,255,.35)',
@@ -107,7 +107,7 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
             </div>
           </div>
           {/* Messages */}
-          <div ref={bodyRef} style={{ flex: 1, maxHeight: 260, minHeight: 120, overflowY: 'auto', padding: '10px 14px', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div ref={bodyRef} style={{ flex: 1, maxHeight: 'min(42vh, 360px)', minHeight: 120, overflowY: 'auto', padding: '10px 14px', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 6 }}>
             {chatMessages.length === 0 && <div style={{ opacity: .6, textAlign: 'center', marginTop: 20 }}>Няма съобщения още.</div>}
             {chatMessages.map((m) => (
               <div key={m.id || m.at || Math.random()} style={{ lineHeight: 1.5 }}>
