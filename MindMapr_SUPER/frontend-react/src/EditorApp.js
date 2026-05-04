@@ -75,6 +75,7 @@ const CHAT_FLOATING_POSITION_KEY = "mindmapr.chatFloating.position";
 function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participants, formatSofiaTime }) {
   const [open, setOpen] = React.useState(false);
   const [panelRendered, setPanelRendered] = React.useState(false);
+  const [panelVisible, setPanelVisible] = React.useState(false);
   const [unread, setUnread] = React.useState(0);
   const [position, setPosition] = React.useState(() => {
     if (typeof window === 'undefined') return { x: 24, y: 88 };
@@ -115,15 +116,27 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
   React.useEffect(() => {
     if (open) {
       setPanelRendered(true);
-      return undefined;
+      const frameId = window.requestAnimationFrame(() => {
+        setPanelVisible(true);
+      });
+      return () => window.cancelAnimationFrame(frameId);
     }
 
+    setPanelVisible(false);
     const timer = window.setTimeout(() => {
       setPanelRendered(false);
-    }, 240);
+    }, 320);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [open]);
+
+  React.useEffect(() => {
+    if (!panelRendered) {
+      setPanelVisible(false);
+    }
+  }, [panelRendered]);
 
   const clampPosition = React.useCallback((nextPosition) => {
     const width = containerRef.current?.offsetWidth || (open ? 320 : 48);
@@ -216,7 +229,7 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
       style={{ top: position.y, left: position.x }}
     >
       {panelRendered && (
-        <div className={`chatFloatingPanel ${open ? 'is-open' : 'is-closing'}`}>
+        <div className={`chatFloatingPanel ${panelVisible ? 'is-open' : 'is-hidden'}`}>
           <div
             className={`chatFloatingHeader ${dragging ? 'is-dragging' : ''}`}
             onMouseDown={startDrag}
