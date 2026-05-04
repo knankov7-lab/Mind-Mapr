@@ -3,7 +3,7 @@ import api from './api';
 import { useAuth } from './AuthContext';
 
 export default function AdminPanel({ onClose }) {
-  const { user } = useAuth();
+  const { user, can: authCan } = useAuth();
   const [users, setUsers] = useState([]);
   const [userRoleDrafts, setUserRoleDrafts] = useState({});
   const [userRoleBusy, setUserRoleBusy] = useState({});
@@ -15,7 +15,7 @@ export default function AdminPanel({ onClose }) {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('users');
 
-  const can = useCallback(() => true, []);
+  const can = useCallback((permission) => authCan(permission), [authCan]);
 
   const roleAuditLogs = useMemo(() => {
     const rows = Array.isArray(logs) ? logs : [];

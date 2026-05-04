@@ -89,6 +89,21 @@ export const AuthProvider = ({ children }) => {
   const isAdmin = normalizedRole === 'admin';
   const isAuthenticated = !!user;
 
+  // Permission map: admin has full access, others have none in admin panel
+  const ADMIN_PERMISSIONS = [
+    'users.read', 'users.manage',
+    'rooms.read', 'rooms.approve', 'rooms.delete',
+    'saves.read', 'saves.delete',
+    'stats.read',
+    'logs.read',
+    'settings.read', 'settings.write',
+  ];
+
+  function can(permission) {
+    if (isAdmin) return true;
+    return false;
+  }
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -100,6 +115,7 @@ export const AuthProvider = ({ children }) => {
       changePassword,
       isAdmin,
       isAuthenticated,
+      can,
     }}>
       {children}
     </AuthContext.Provider>
