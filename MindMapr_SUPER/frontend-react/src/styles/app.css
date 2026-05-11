@@ -1481,4 +1481,108 @@ kbd{
   .panelActionGrid{ grid-template-columns: 1fr 1fr; }
 }
 
+/* Install banner for PWA */
+.install-banner{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #7c5cff 0%, #5c9cff 100%);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 999;
+  font-size: 14px;
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown{
+  from{
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to{
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.install-banner-text{
+  flex: 1;
+  min-width: 0;
+}
+
+.install-banner-buttons{
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.install-banner-btn{
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.install-banner-btn.primary{
+  background: white;
+  color: #7c5cff;
+}
+
+.install-banner-btn.primary:hover{
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.install-banner-btn.close{
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 8px 12px;
+}
+
+.install-banner-btn.close:hover{
+  background: rgba(255, 255, 255, 0.3);
+}
+
+body.has-install-banner .header{
+  top: 50px;
+}
+
+body.has-install-banner .main{
+  top: 100px;
+  max-height: calc(100vh - 100px);
+}
+
+/* Mobile adjustments for install banner */
+@media (max-width: 768px){
+  .install-banner{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .install-banner-text{
+    text-align: center;
+  }
+
+  .install-banner-buttons{
+    justify-content: stretch;
+  }
+
+  .install-banner-btn{
+    flex: 1;
+    padding: 10px 12px;
+  }
+}
+
 

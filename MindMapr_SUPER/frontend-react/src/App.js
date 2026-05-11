@@ -37,6 +37,63 @@ export default function App() {
   }, [syncTheme]);
 
   useEffect(() => {
+    let installPrompt = null;
+
+    // Listen for beforeinstallprompt event
+    const onBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      installPrompt = event;
+      
+      // Show custom install prompt/banner
+      const banner = document.createElement('div');
+      banner.id = 'install-banner';
+      banner.className = 'install-banner';
+      
+      const textDiv = document.createElement('div');
+      textDiv.textContent = '📲 Инсталирай MindMapr като приложение';
+      textDiv.className = 'install-banner-text';
+      
+      const buttonContainer = document.createElement('div');
+      buttonContainer.className = 'install-banner-buttons';
+      
+      const installBtn = document.createElement('button');
+      installBtn.textContent = 'Инсталирай';
+      installBtn.className = 'install-banner-btn primary';
+      installBtn.onclick = async () => {
+        if (installPrompt) {
+          installPrompt.prompt();
+          const { outcome } = await installPrompt.userChoice;
+          console.log(`User response to the install prompt: ${outcome}`);
+          installPrompt = null;
+          banner.remove();
+          document.body.classList.remove('has-install-banner');
+        }
+      };
+      
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕';
+      closeBtn.className = 'install-banner-btn close';
+      closeBtn.onclick = () => {
+        banner.remove();
+        document.body.classList.remove('has-install-banner');
+      };
+      
+      buttonContainer.appendChild(installBtn);
+      buttonContainer.appendChild(closeBtn);
+      banner.appendChild(textDiv);
+      banner.appendChild(buttonContainer);
+      document.body.appendChild(banner);
+      document.body.classList.add('has-install-banner');
+    };
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    };
+  }, []);
+
+  useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState === "visible") syncTheme();
     };
