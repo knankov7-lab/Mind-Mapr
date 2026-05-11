@@ -301,7 +301,14 @@ function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participa
 export default function EditorApp() {
   const [showMapList, setShowMapList] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
+  const [showMobilePanel, setShowMobilePanel] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const { user, token, isAuthenticated, isAdmin, login, register, logout, changePassword } = useAuth();
   const [room, setRoom] = useState(getRoomFromUrl());
@@ -1998,14 +2005,16 @@ export default function EditorApp() {
           <span style={{ fontSize: 18 }}>🧠 MindMapr</span>
           <span className="badge">Realtime</span>
         </div>
-        <div className="row" style={{ gap: 12 }}>
+        <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
           <span className="pill" title="Състояние на връзката за екипна работа">
             <span className={"dot " + (status === "online" ? "ok" : "bad")} />
             {status === "online" ? "онлайн" : "офлайн"}
           </span>
-          <span className="pill" title={lastSync ? `Последна синхронизация: ${formatSofiaDateTime(lastSync)}` : "Текущ час в България"}>
-            ⏱ {clockTime}
-          </span>
+          {!isMobile ? (
+            <span className="pill" title={lastSync ? `Последна синхронизация: ${formatSofiaDateTime(lastSync)}` : "Текущ час в България"}>
+              ⏱ {clockTime}
+            </span>
+          ) : null}
           {isAdmin ? (
             <button className="btn ghost" onClick={() => setShowAdmin(true)}>
               ⚙️ Admin
@@ -2014,8 +2023,14 @@ export default function EditorApp() {
         </div>
       </div>
 
-      <div className="main" ref={mainRef} style={{ gridTemplateColumns: `${panelWidth}px 12px 1fr` }}>
-        <div className="panel">
+      <div className="main" ref={mainRef} style={isMobile ? { gridTemplateColumns: '1fr' } : { gridTemplateColumns: `${panelWidth}px 12px 1fr` }}>
+        <div className={`panel${isMobile ? ' mobile-side-panel' : ''}${isMobile && showMobilePanel ? ' mobile-open' : ''}`}>
+          {isMobile ? (
+            <div className="mobilePanelClose">
+              <h4>🧠 Меню</h4>
+              <button className="btn ghost" style={{ width: 'auto', padding: '8px 12px', fontSize: 18 }} onClick={() => setShowMobilePanel(false)}>✕</button>
+            </div>
+          ) : null}
           <div className="section">
             <h3>Стая за екипна работа</h3>
             <div className="col">
@@ -2358,6 +2373,7 @@ export default function EditorApp() {
           </div>
         </div>
 
+        {!isMobile ? (
         <div
           className="resizer"
           role="separator"
@@ -2375,8 +2391,19 @@ export default function EditorApp() {
             if (e.key === "End") setPanelWidth(PANEL_MAX);
           }}
         />
+        ) : null}
 
         <div className="canvasWrap" ref={canvasRef}>
+          {isMobile ? (
+            <button
+              className="mobilePanelBtn"
+              title="Отвори менюто"
+              type="button"
+              onClick={() => setShowMobilePanel(true)}
+            >
+              ☰
+            </button>
+          ) : null}
           <ReactFlow
             nodes={nodes}
             edges={presentedEdges}

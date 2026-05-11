@@ -2,7 +2,19 @@
 import api from './api';
 import { useAuth } from './AuthContext';
 
+function useWindowWidth() {
+  const [width, setWidth] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1200);
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return width;
+}
+
 export default function AdminPanel({ onClose }) {
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth <= 768;
   const { user, can: authCan } = useAuth();
   const [users, setUsers] = useState([]);
   const [userRoleDrafts, setUserRoleDrafts] = useState({});
@@ -354,20 +366,22 @@ export default function AdminPanel({ onClose }) {
   // AI example management removed
 
   return (
-    <div style={{position:'absolute',right:18,top:62,bottom:14,left:380,background:'rgba(18,26,46,.92)',padding:24,borderRadius:'18px',boxShadow:'0 18px 55px rgba(0,0,0,.35)',overflow:'auto',minWidth:520}}>
+    <div style={isMobile
+      ? {position:'fixed',inset:0,background:'rgba(18,26,46,.97)',padding:'12px',borderRadius:0,boxShadow:'none',overflow:'auto',zIndex:1100}
+      : {position:'absolute',right:18,top:62,bottom:14,left:380,background:'rgba(18,26,46,.92)',padding:24,borderRadius:'18px',boxShadow:'0 18px 55px rgba(0,0,0,.35)',overflow:'auto',minWidth:520}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-        <h3 style={{fontWeight:800,letterSpacing:'.2px',color:'#dfe6ff'}}>Администраторски панел</h3>
-        <button className="btn ghost" onClick={onClose} style={{fontWeight:700}}>✖</button>
+        <h3 style={{fontWeight:800,letterSpacing:'.2px',color:'#dfe6ff',fontSize: isMobile ? 17 : 20}}>Администраторски панел</h3>
+        <button className="btn ghost" onClick={onClose} style={{fontWeight:700,width:'auto',padding:'8px 14px'}}>✖</button>
       </div>
-      <div style={{display:'flex',gap:8,marginBottom:16}}>
-        {can('users.read') ? <button className={tab==='users'?'btn primary':'btn ghost'} onClick={()=>setTab('users')}>Потребители</button> : null}
-        {can('rooms.read') ? <button className={tab==='rooms'?'btn primary':'btn ghost'} onClick={()=>setTab('rooms')}>Карти</button> : null}
-        {can('saves.read') ? <button className={tab==='saves'?'btn primary':'btn ghost'} onClick={()=>setTab('saves')}>Всички записи</button> : null}
-        {can('stats.read') ? <button className={tab==='stats'?'btn primary':'btn ghost'} onClick={()=>setTab('stats')}>Статистика</button> : null}
-        {can('stats.read') ? <button className={tab==='performance'?'btn primary':'btn ghost'} onClick={()=>setTab('performance')}>Натоварване</button> : null}
-        {can('logs.read') ? <button className={tab==='logs'?'btn primary':'btn ghost'} onClick={()=>setTab('logs')}>Логове</button> : null}
-        {can('logs.read') ? <button className={tab==='role-audit'?'btn primary':'btn ghost'} onClick={()=>setTab('role-audit')}>Role Audit</button> : null}
-        {can('settings.read') ? <button className={tab==='settings'?'btn primary':'btn ghost'} onClick={()=>setTab('settings')}>Настройки</button> : null}
+      <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
+        {can('users.read') ? <button className={tab==='users'?'btn primary':'btn ghost'} style={{width:'auto',padding:isMobile?'8px 10px':'10px 14px',fontSize:isMobile?12:14}} onClick={()=>setTab('users')}>Потребители</button> : null}
+        {can('rooms.read') ? <button className={tab==='rooms'?'btn primary':'btn ghost'} style={{width:'auto',padding:isMobile?'8px 10px':'10px 14px',fontSize:isMobile?12:14}} onClick={()=>setTab('rooms')}>Карти</button> : null}
+        {can('saves.read') ? <button className={tab==='saves'?'btn primary':'btn ghost'} style={{width:'auto',padding:isMobile?'8px 10px':'10px 14px',fontSize:isMobile?12:14}} onClick={()=>setTab('saves')}>Записи</button> : null}
+        {can('stats.read') ? <button className={tab==='stats'?'btn primary':'btn ghost'} style={{width:'auto',padding:isMobile?'8px 10px':'10px 14px',fontSize:isMobile?12:14}} onClick={()=>setTab('stats')}>Статистика</button> : null}
+        {can('stats.read') ? <button className={tab==='performance'?'btn primary':'btn ghost'} style={{width:'auto',padding:isMobile?'8px 10px':'10px 14px',fontSize:isMobile?12:14}} onClick={()=>setTab('performance')}>Натоварване</button> : null}
+        {can('logs.read') ? <button className={tab==='logs'?'btn primary':'btn ghost'} style={{width:'auto',padding:isMobile?'8px 10px':'10px 14px',fontSize:isMobile?12:14}} onClick={()=>setTab('logs')}>Логове</button> : null}
+        {can('logs.read') ? <button className={tab==='role-audit'?'btn primary':'btn ghost'} style={{width:'auto',padding:isMobile?'8px 10px':'10px 14px',fontSize:isMobile?12:14}} onClick={()=>setTab('role-audit')}>Роли</button> : null}
+        {can('settings.read') ? <button className={tab==='settings'?'btn primary':'btn ghost'} style={{width:'auto',padding:isMobile?'8px 10px':'10px 14px',fontSize:isMobile?12:14}} onClick={()=>setTab('settings')}>Настройки</button> : null}
         {/* AI training tab removed */}
       </div>
 
@@ -566,7 +580,7 @@ export default function AdminPanel({ onClose }) {
             <div><b>CPU load (1/5/15):</b> {formatNumber(performance?.process?.cpuLoad1m || 0)} / {formatNumber(performance?.process?.cpuLoad5m || 0)} / {formatNumber(performance?.process?.cpuLoad15m || 0)}</div>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,alignItems:'start'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:10,alignItems:'start'}}>
             <div style={{border:'1px solid rgba(255,255,255,.10)',borderRadius:'12px',background:'rgba(255,255,255,.04)',padding:'10px'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,gap:8,flexWrap:'wrap'}}>
                 <div style={{fontSize:12,fontWeight:700,opacity:.95}}>Тренд в реално време</div>
@@ -597,7 +611,7 @@ export default function AdminPanel({ onClose }) {
                   ) : null}
                 </svg>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:8,fontSize:12}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(90px,1fr))',gap:8,marginTop:8,fontSize:12}}>
                 <div><b>{trendMetricConfig[performanceTrendMetric]?.label || 'Метрика'}:</b> {formatNumber(trendSeries.latest)}</div>
                 <div><b>Средно:</b> {formatNumber(trendSeries.avg)}</div>
                 <div><b>Проби:</b> {formatNumber(trendSeries.samples)}</div>
@@ -637,7 +651,7 @@ export default function AdminPanel({ onClose }) {
                   />
                 ))}
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:12,marginBottom:10}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:6,fontSize:12,marginBottom:10}}>
                 {statusChartRows.map((row) => (
                   <div key={row.key} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'4px 6px',borderRadius:8,background:'rgba(255,255,255,.03)'}}>
                     <span style={{display:'inline-flex',alignItems:'center',gap:6}}>
@@ -673,7 +687,7 @@ export default function AdminPanel({ onClose }) {
               Метод
               <select
                 className="select"
-                style={{padding:'6px 10px',borderRadius:10,minWidth:110}}
+                style={{padding:'6px 10px',borderRadius:10,minWidth:0,flex:'0 0 auto'}}
                 value={performanceMethodFilter}
                 onChange={(e) => setPerformanceMethodFilter(String(e.target.value || 'ALL').toUpperCase())}
               >
@@ -688,7 +702,7 @@ export default function AdminPanel({ onClose }) {
                 value={performanceEndpointFilter}
                 onChange={(e) => setPerformanceEndpointFilter(e.target.value)}
                 placeholder="/api/admin"
-                style={{borderRadius:'10px',border:'1px solid rgba(255,255,255,.12)',background:'rgba(255,255,255,.07)',color:'#e9eeff',padding:'6px 10px',minWidth:220}}
+                style={{borderRadius:'10px',border:'1px solid rgba(255,255,255,.12)',background:'rgba(255,255,255,.07)',color:'#e9eeff',padding:'6px 10px',flex:1,minWidth:0,width:'100%'}}
               />
             </label>
             <button

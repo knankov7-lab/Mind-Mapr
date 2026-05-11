@@ -1324,4 +1324,161 @@ kbd{
 }
 .contextRenameInput:focus{ box-shadow: 0 6px 18px rgba(124,92,255,.12); border-color: rgba(124,92,255,.28); }
 
+/* ============================================================
+   MOBILE RESPONSIVE  (≤ 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* ---- Header ---- */
+  .header{
+    padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 54px;
+  }
+  .header .row{
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .brand{ font-size: 15px; }
+  .badge{ display: none; }
+
+  /* ---- Main layout: stack panel overlay + canvas ---- */
+  .main{
+    grid-template-columns: 1fr !important;
+    padding: 0 6px 6px 6px;
+    gap: 0;
+    top: 54px !important;
+    max-height: calc(100vh - 54px);
+  }
+
+  /* Panel: hidden by default on mobile; shown as fixed overlay via .mobile-open */
+  .panel.mobile-side-panel{
+    display: none;
+    position: fixed;
+    top: 54px;
+    left: 0; right: 0; bottom: 0;
+    z-index: 800;
+    border-radius: 0;
+    min-width: 0;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .panel.mobile-side-panel.mobile-open{
+    display: flex;
+  }
+
+  /* Resizer: hide on mobile */
+  .resizer{ display: none !important; }
+
+  /* Canvas: fill full screen below header */
+  .canvasWrap{
+    height: calc(100vh - 54px);
+  }
+
+  /* ---- Panels inside sections ---- */
+  .panel .section{
+    padding: 16px 14px 14px 14px;
+  }
+  .panel h3{ font-size: 16px; }
+
+  .input, .btn, .select{
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  /* ---- panelActionGrid: 2 cols on mobile ---- */
+  .panelActionGrid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* ---- Page / modals ---- */
+  .page{
+    width: min(100vw, 540px);
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 14px;
+    padding: 16px 14px;
+  }
+  .page-overlay{ padding: 10px; }
+
+  .tutorialCard{
+    width: 96vw;
+    max-height: 88vh;
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  /* ---- Floating chat: smaller on mobile ---- */
+  .chatFloatingPanel{
+    width: min(340px, 92vw);
+    max-height: 68vh;
+  }
+
+  /* ---- Public maps page ---- */
+  .page-header-row{ flex-direction: column; align-items: flex-start; }
+}
+
+/* Mobile panel toggle button (injected by React) */
+.mobilePanelBtn{
+  position: fixed;
+  bottom: 18px;
+  left: 14px;
+  z-index: 801;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(124,92,255,.45);
+  background: linear-gradient(135deg, rgba(124,92,255,.88), rgba(38,209,167,.72));
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(124,92,255,.35);
+  transition: transform .1s ease, filter .1s ease;
+}
+.mobilePanelBtn:active{ transform: scale(.93); }
+
+/* Mobile panel close/back button inside panel top bar */
+.mobilePanelClose{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--panel-border);
+  backdrop-filter: blur(8px);
+}
+.mobilePanelClose h4{
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #f0f2ff;
+  flex: 1;
+}
+/* Show only on mobile */
+.mobilePanelClose{ display: none; }
+@media (max-width: 768px){
+  .mobilePanelClose{ display: flex; }
+  .mobilePanelBtn{ display: flex; }
+}
+/* Hide toggle button on desktop */
+@media (min-width: 769px){
+  .mobilePanelBtn{ display: none !important; }
+}
+
+/* ====== Extra small (≤ 480px) ====== */
+@media (max-width: 480px) {
+  .header{ padding: 8px 10px; }
+  .pill{ font-size: 11px; padding: 5px 8px; }
+  .input, .btn, .select{ font-size: 14px; padding: 11px 12px; }
+  .panelActionGrid{ grid-template-columns: 1fr 1fr; }
+}
+
 
