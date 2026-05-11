@@ -243,6 +243,20 @@ router.get('/stats', requireAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Failed to compute stats' }); }
 });
 
+// Runtime performance/load snapshot
+router.get('/performance', requireAdmin, async (req, res) => {
+  try {
+    const getSnapshot = req.app?.locals?.getServerPerformanceSnapshot;
+    if (typeof getSnapshot !== 'function') {
+      return res.status(503).json({ error: 'Performance monitor is unavailable' });
+    }
+    const snapshot = getSnapshot();
+    res.json(snapshot || {});
+  } catch (_e) {
+    res.status(500).json({ error: 'Failed to load performance snapshot' });
+  }
+});
+
 // Settings endpoints
 router.get('/settings', requireAdmin, async (req, res) => {
   try {

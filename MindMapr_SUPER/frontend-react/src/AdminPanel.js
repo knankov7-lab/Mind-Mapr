@@ -10,6 +10,10 @@ export default function AdminPanel({ onClose }) {
   const [rooms, setRooms] = useState([]);
   const [saves, setSaves] = useState([]);
   const [stats, setStats] = useState(null);
+  const [performance, setPerformance] = useState(null);
+  const [performanceMethodFilter, setPerformanceMethodFilter] = useState('ALL');
+  const [performanceEndpointFilter, setPerformanceEndpointFilter] = useState('');
+  const [performanceRefreshMs, setPerformanceRefreshMs] = useState(10000);
   const [logs, setLogs] = useState([]);
   const [settings, setSettings] = useState({});
   const [saving, setSaving] = useState(false);
@@ -64,11 +68,54 @@ export default function AdminPanel({ onClose }) {
     };
   }, []);
 
+  const formatMs = useCallback((value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '-';
+    return `${num.toFixed(2)} ms`;
+  }, []);
+
+  const formatNumber = useCallback((value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '0';
+    return new Intl.NumberFormat('bg-BG').format(num);
+  }, []);
+
+  const performanceMethods = useMemo(() => {
+    const source = Array.isArray(performance?.topEndpoints) ? performance.topEndpoints : [];
+    const methods = new Set(['ALL']);
+    source.forEach((row) => {
+      const endpoint = String(row?.endpoint || '').trim();
+      const method = endpoint.split(' ')[0];
+      if (method) methods.add(method.toUpperCase());
+    });
+    return Array.from(methods);
+  }, [performance]);
+
+  const filteredTopEndpoints = useMemo(() => {
+    const source = Array.isArray(performance?.topEndpoints) ? performance.topEndpoints : [];
+    const needle = String(performanceEndpointFilter || '').trim().toLowerCase();
+    return source.filter((row) => {
+      const endpoint = String(row?.endpoint || '').trim();
+      const method = endpoint.split(' ')[0]?.toUpperCase() || '';
+      const methodOk = performanceMethodFilter === 'ALL' || method === performanceMethodFilter;
+      const textOk = !needle || endpoint.toLowerCase().includes(needle);
+      return methodOk && textOk;
+    });
+  }, [performance, performanceMethodFilter, performanceEndpointFilter]);
+
 
   useEffect(() => {
     if (!user) return;
     fetchAll();
   }, [user, can]);
+
+  useEffect(() => {
+    if (!user || tab !== 'performance' || !can('stats.read') || performanceRefreshMs <= 0) return undefined;
+    const timer = setInterval(() => {
+      fetchPerformance();
+    }, performanceRefreshMs);
+    return () => clearInterval(timer);
+  }, [tab, user, can, performanceRefreshMs]);
 
   // AI training UI removed
 
@@ -95,6 +142,7 @@ export default function AdminPanel({ onClose }) {
       if (can('stats.read')) {
         const s = await api.get('/admin/stats');
         setStats(s.data || null);
+        await fetchPerformance();
       }
       if (can('settings.read')) {
         const sett = await api.get('/admin/settings');
@@ -108,6 +156,16 @@ export default function AdminPanel({ onClose }) {
         const lg = await api.get('/admin/logs?limit=200');
         setLogs(lg.data.logs || lg.data || []);
       }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function fetchPerformance() {
+    if (!can('stats.read')) return;
+    try {
+      const perf = await api.get('/admin/performance');
+      setPerformance(perf.data || null);
     } catch (e) {
       console.error(e);
     }
@@ -186,6 +244,7 @@ export default function AdminPanel({ onClose }) {
         {can('rooms.read') ? <button className={tab==='rooms'?'btn primary':'btn ghost'} onClick={()=>setTab('rooms')}>Карти</button> : null}
         {can('saves.read') ? <button className={tab==='saves'?'btn primary':'btn ghost'} onClick={()=>setTab('saves')}>Всички записи</button> : null}
         {can('stats.read') ? <button className={tab==='stats'?'btn primary':'btn ghost'} onClick={()=>setTab('stats')}>Статистика</button> : null}
+        {can('stats.read') ? <button className={tab==='performance'?'btn primary':'btn ghost'} onClick={()=>setTab('performance')}>Performance</button> : null}
         {can('logs.read') ? <button className={tab==='logs'?'btn primary':'btn ghost'} onClick={()=>setTab('logs')}>Логове</button> : null}
         {can('logs.read') ? <button className={tab==='role-audit'?'btn primary':'btn ghost'} onClick={()=>setTab('role-audit')}>Role Audit</button> : null}
         {can('settings.read') ? <button className={tab==='settings'?'btn primary':'btn ghost'} onClick={()=>setTab('settings')}>Настройки</button> : null}
@@ -312,6 +371,152 @@ export default function AdminPanel({ onClose }) {
             <ul style={{margin:0,paddingLeft:18}}>{stats?.popularMaps?.map(m=>(<li key={m.room_id}>{m.room_id} ({m.saves} записа)</li>))}</ul>
             <div style={{marginTop:8}}><b>Ключови думи:</b></div>
             <ul style={{margin:0,paddingLeft:18}}>{stats?.keywords?.map(k=>(<li key={k.keyword}>{k.keyword} ({k.count})</li>))}</ul>
+          </div>
+        </section>
+      )}
+
+      {tab==='performance' && can('stats.read') && (
+        <section>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <h4 style={{margin:'8px 0'}}>Server Load / Performance</h4>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <label style={{fontSize:12,display:'flex',alignItems:'center',gap:6,opacity:.9}}>
+                Auto-refresh
+                <select
+                  className="select"
+                  style={{padding:'6px 10px',borderRadius:10,minWidth:92}}
+                  value={String(performanceRefreshMs)}
+                  onChange={(e) => setPerformanceRefreshMs(Number(e.target.value || 0))}
+                >
+                  <option value="0">Off</option>
+                  <option value="5000">5s</option>
+                  <option value="10000">10s</option>
+                  <option value="30000">30s</option>
+                  <option value="60000">60s</option>
+                </select>
+              </label>
+              <button className="btn ghost" style={{fontSize:12}} onClick={fetchPerformance}>Опресни</button>
+            </div>
+          </div>
+
+          <div style={{background:'rgba(255,255,255,.04)',borderRadius:'12px',padding:'12px',fontSize:13,border:'1px solid rgba(255,255,255,.10)',marginBottom:10}}>
+            <div><b>Monitor uptime:</b> {formatNumber(performance?.monitor?.uptimeSec || 0)} сек</div>
+            <div><b>Window:</b> {formatNumber(performance?.monitor?.windowSec || 0)} сек</div>
+            <div><b>In-flight:</b> {formatNumber(performance?.requests?.inFlight || 0)}</div>
+            <div><b>Total requests:</b> {formatNumber(performance?.requests?.total || 0)}</div>
+            <div><b>Recent requests:</b> {formatNumber(performance?.requests?.recentWindowRequests || 0)} ({formatNumber(performance?.requests?.recentWindowRps || 0)} req/s)</div>
+            <div><b>Error rate:</b> {formatNumber(performance?.requests?.errorRatePct || 0)}%</div>
+            <div><b>Avg / P95 latency:</b> {formatMs(performance?.requests?.avgLatencyMs)} / {formatMs(performance?.requests?.p95LatencyMs)}</div>
+            <div><b>Node:</b> {performance?.process?.nodeVersion || '-'} | <b>PID:</b> {performance?.process?.pid || '-'}</div>
+            <div><b>Memory RSS / Heap:</b> {formatNumber(performance?.process?.memoryRssMb || 0)} MB / {formatNumber(performance?.process?.heapUsedMb || 0)} MB</div>
+            <div><b>CPU load 1/5/15:</b> {formatNumber(performance?.process?.cpuLoad1m || 0)} / {formatNumber(performance?.process?.cpuLoad5m || 0)} / {formatNumber(performance?.process?.cpuLoad15m || 0)}</div>
+          </div>
+
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,alignItems:'start'}}>
+            <div style={{maxHeight:260,overflow:'auto',border:'1px solid rgba(255,255,255,.10)',borderRadius:'12px',background:'rgba(255,255,255,.04)'}}>
+              <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
+                <thead style={{background:'rgba(124,92,255,.18)'}}>
+                  <tr>
+                    <th style={{textAlign:'left',padding:'10px'}}>Status bucket</th>
+                    <th style={{textAlign:'left',padding:'10px'}}>Count (window)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(performance?.recentStatusBuckets || {}).map(([bucket, count]) => (
+                    <tr key={bucket} style={{borderTop:'1px solid rgba(255,255,255,.06)'}}>
+                      <td style={{padding:'10px'}}>{bucket}</td>
+                      <td style={{padding:'10px'}}>{formatNumber(count || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{maxHeight:260,overflow:'auto',border:'1px solid rgba(255,255,255,.10)',borderRadius:'12px',background:'rgba(255,255,255,.04)'}}>
+              <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
+                <thead style={{background:'rgba(124,92,255,.18)'}}>
+                  <tr>
+                    <th style={{textAlign:'left',padding:'10px'}}>Metric</th>
+                    <th style={{textAlign:'left',padding:'10px'}}>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{borderTop:'1px solid rgba(255,255,255,.06)'}}><td style={{padding:'10px'}}>Avg latency</td><td style={{padding:'10px'}}>{formatMs(performance?.requests?.avgLatencyMs)}</td></tr>
+                  <tr style={{borderTop:'1px solid rgba(255,255,255,.06)'}}><td style={{padding:'10px'}}>P50 latency</td><td style={{padding:'10px'}}>{formatMs(performance?.requests?.p50LatencyMs)}</td></tr>
+                  <tr style={{borderTop:'1px solid rgba(255,255,255,.06)'}}><td style={{padding:'10px'}}>P95 latency</td><td style={{padding:'10px'}}>{formatMs(performance?.requests?.p95LatencyMs)}</td></tr>
+                  <tr style={{borderTop:'1px solid rgba(255,255,255,.06)'}}><td style={{padding:'10px'}}>P99 latency</td><td style={{padding:'10px'}}>{formatMs(performance?.requests?.p99LatencyMs)}</td></tr>
+                  <tr style={{borderTop:'1px solid rgba(255,255,255,.06)'}}><td style={{padding:'10px'}}>Max latency</td><td style={{padding:'10px'}}>{formatMs(performance?.requests?.maxLatencyMs)}</td></tr>
+                  <tr style={{borderTop:'1px solid rgba(255,255,255,.06)'}}><td style={{padding:'10px'}}>Recent P95</td><td style={{padding:'10px'}}>{formatMs(performance?.requests?.recentWindowP95LatencyMs)}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{display:'flex',gap:8,alignItems:'center',marginTop:10,marginBottom:8,flexWrap:'wrap'}}>
+            <label style={{fontSize:12,display:'flex',alignItems:'center',gap:6}}>
+              Method
+              <select
+                className="select"
+                style={{padding:'6px 10px',borderRadius:10,minWidth:110}}
+                value={performanceMethodFilter}
+                onChange={(e) => setPerformanceMethodFilter(String(e.target.value || 'ALL').toUpperCase())}
+              >
+                {performanceMethods.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+            <label style={{fontSize:12,display:'flex',alignItems:'center',gap:6}}>
+              Endpoint contains
+              <input
+                value={performanceEndpointFilter}
+                onChange={(e) => setPerformanceEndpointFilter(e.target.value)}
+                placeholder="/api/admin"
+                style={{borderRadius:'10px',border:'1px solid rgba(255,255,255,.12)',background:'rgba(255,255,255,.07)',color:'#e9eeff',padding:'6px 10px',minWidth:220}}
+              />
+            </label>
+            <button
+              className="btn ghost"
+              style={{fontSize:12,padding:'6px 10px',width:'auto'}}
+              onClick={() => {
+                setPerformanceMethodFilter('ALL');
+                setPerformanceEndpointFilter('');
+              }}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div style={{maxHeight:320,overflow:'auto',border:'1px solid rgba(255,255,255,.10)',borderRadius:'12px',background:'rgba(255,255,255,.04)',marginTop:10}}>
+            <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
+              <thead style={{background:'rgba(124,92,255,.18)'}}>
+                <tr>
+                  <th style={{textAlign:'left',padding:'10px'}}>Endpoint</th>
+                  <th style={{textAlign:'left',padding:'10px'}}>Requests</th>
+                  <th style={{textAlign:'left',padding:'10px'}}>5xx</th>
+                  <th style={{textAlign:'left',padding:'10px'}}>Error %</th>
+                  <th style={{textAlign:'left',padding:'10px'}}>Avg ms</th>
+                  <th style={{textAlign:'left',padding:'10px'}}>Max ms</th>
+                  <th style={{textAlign:'left',padding:'10px'}}>Last status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTopEndpoints.map((row) => (
+                  <tr key={row.endpoint} style={{borderTop:'1px solid rgba(255,255,255,.06)'}}>
+                    <td style={{padding:'10px',whiteSpace:'nowrap',maxWidth:280,overflow:'hidden',textOverflow:'ellipsis'}} title={row.endpoint}>{row.endpoint}</td>
+                    <td style={{padding:'10px'}}>{formatNumber(row.requests || 0)}</td>
+                    <td style={{padding:'10px'}}>{formatNumber(row.errors5xx || 0)}</td>
+                    <td style={{padding:'10px'}}>{formatNumber(row.errorRatePct || 0)}%</td>
+                    <td style={{padding:'10px'}}>{formatMs(row.avgLatencyMs)}</td>
+                    <td style={{padding:'10px'}}>{formatMs(row.maxLatencyMs)}</td>
+                    <td style={{padding:'10px'}}>{row.lastStatus || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredTopEndpoints.length === 0 ? (
+              <div style={{padding:'12px',fontSize:12,opacity:.85}}>Няма резултати за избраните филтри.</div>
+            ) : null}
           </div>
         </section>
       )}

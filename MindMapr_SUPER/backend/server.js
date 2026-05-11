@@ -5,6 +5,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
+const { createServerPerformanceMonitor } = require("./perfMonitor");
 const { toSofiaSqlString } = require("./time");
 const {
   authMiddleware,
@@ -95,6 +96,15 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: "2mb" }));
+
+const perfMonitor = createServerPerformanceMonitor({
+  maxLatencySamples: 4000,
+  maxRecentSamples: 5000,
+  recentWindowMs: 60000,
+  maxEndpoints: 300,
+});
+app.locals.getServerPerformanceSnapshot = perfMonitor.getSnapshot;
+app.use(perfMonitor.middleware);
 
 // Health / keep-alive endpoint
 app.get("/api/health", (_req, res) => {
