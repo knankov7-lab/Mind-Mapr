@@ -367,8 +367,8 @@ export default function AdminPanel({ onClose }) {
 
   return (
     <div style={isMobile
-      ? {position:'fixed',inset:0,background:'rgba(18,26,46,.97)',padding:'12px',borderRadius:0,boxShadow:'none',overflow:'auto',zIndex:1100}
-      : {position:'absolute',right:18,top:62,bottom:14,left:380,background:'rgba(18,26,46,.92)',padding:24,borderRadius:'18px',boxShadow:'0 18px 55px rgba(0,0,0,.35)',overflow:'auto',minWidth:520}}>
+      ? {position:'fixed',top:54,left:0,right:0,bottom:0,background:'rgba(18,26,46,.97)',padding:'12px',borderRadius:0,boxShadow:'none',overflow:'auto',zIndex:1100}
+      : {position:'fixed',right:18,top:66,bottom:14,left:380,background:'rgba(18,26,46,.92)',padding:24,borderRadius:'18px',boxShadow:'0 18px 55px rgba(0,0,0,.35)',overflow:'auto',minWidth:520,zIndex:20}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
         <h3 style={{fontWeight:800,letterSpacing:'.2px',color:'#dfe6ff',fontSize: isMobile ? 17 : 20}}>Администраторски панел</h3>
         <button className="btn ghost" onClick={onClose} style={{fontWeight:700,width:'auto',padding:'8px 14px'}}>✖</button>
