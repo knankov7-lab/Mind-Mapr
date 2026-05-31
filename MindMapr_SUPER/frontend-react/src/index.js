@@ -6,6 +6,24 @@ import { AuthProvider } from "./AuthContext";
 import "./styles/app.css";
 import "reactflow/dist/style.css";
 
+function safeSessionGet(key) {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return null;
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSessionSet(key, value) {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return;
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // ignore storage failures
+  }
+}
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <BrowserRouter
@@ -28,8 +46,8 @@ if ('serviceWorker' in navigator) {
         console.log('Service Worker registered:', registration);
         
         // Show welcome notification on app open
-        if (!sessionStorage.getItem('mindmapr-welcome-shown')) {
-          sessionStorage.setItem('mindmapr-welcome-shown', 'true');
+        if (!safeSessionGet('mindmapr-welcome-shown')) {
+          safeSessionSet('mindmapr-welcome-shown', 'true');
           
           // Request notification permission and show welcome
           if ('Notification' in window && Notification.permission === 'granted') {

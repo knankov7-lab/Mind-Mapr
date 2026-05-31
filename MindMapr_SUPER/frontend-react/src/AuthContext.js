@@ -5,9 +5,36 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+function safeLocalStorageGet(key) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalStorageSet(key, value) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function safeLocalStorageRemove(key) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.removeItem(key);
+  } catch {
+    // ignore storage failures
+  }
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(() => safeLocalStorageGet('token'));
   const [loading, setLoading] = useState(true);
 
   function decodeJwtPayload(jwtToken) {
@@ -34,7 +61,7 @@ export const AuthProvider = ({ children }) => {
       if (payload) {
         setUser(payload);
       } else {
-        localStorage.removeItem('token');
+        safeLocalStorageRemove('token');
         setToken(null);
         setUser(null);
       }
@@ -48,7 +75,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authAPI.login(email, password);
       const { token: newToken, user: userData } = res.data;
-      localStorage.setItem('token', newToken);
+      safeLocalStorageSet('token', newToken);
       setToken(newToken);
       setUser(userData);
       return { success: true, user: userData, token: newToken };
@@ -61,7 +88,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authAPI.register(email, password, username);
       const { token: newToken, user: userData } = res.data;
-      localStorage.setItem('token', newToken);
+      safeLocalStorageSet('token', newToken);
       setToken(newToken);
       setUser(userData);
       return { success: true, user: userData, token: newToken };
@@ -71,7 +98,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    safeLocalStorageRemove('token');
     setToken(null);
     setUser(null);
   };

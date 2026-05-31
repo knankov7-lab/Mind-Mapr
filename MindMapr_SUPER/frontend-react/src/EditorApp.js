@@ -72,6 +72,24 @@ function buildPersonalRoomId(userData) {
 
 const CHAT_FLOATING_POSITION_KEY = "mindmapr.chatFloating.position";
 
+function safeLocalStorageGet(key) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalStorageSet(key, value) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore storage failures
+  }
+}
+
 function ChatFloating({ chatMessages, chatText, setChatText, sendChat, participants, formatSofiaTime }) {
   const [open, setOpen] = React.useState(false);
   const [panelRendered, setPanelRendered] = React.useState(false);
@@ -312,7 +330,7 @@ export default function EditorApp() {
 
   const { user, token, isAuthenticated, isAdmin, login, register, logout, changePassword } = useAuth();
   const [room, setRoom] = useState(getRoomFromUrl());
-  const [name, setName] = useState(() => localStorage.getItem("mm_name") || "guest");
+  const [name, setName] = useState(() => safeLocalStorageGet("mm_name") || "guest");
   const [status, setStatus] = useState("offline"); // online/offline
   const [lastSync, setLastSync] = useState(null);
   const [clockTime, setClockTime] = useState(() => getSofiaNowTime());
@@ -418,7 +436,7 @@ export default function EditorApp() {
   const PANEL_MIN = 240;
   const PANEL_MAX = 560;
   const [panelWidth, setPanelWidth] = useState(() => {
-    const raw = localStorage.getItem("mm_panelWidth");
+    const raw = safeLocalStorageGet("mm_panelWidth");
     const n = Number(raw);
     if (Number.isFinite(n) && n >= PANEL_MIN && n <= PANEL_MAX) return n;
     return 320;
@@ -427,7 +445,7 @@ export default function EditorApp() {
   const resizingRef = useRef(false);
 
   useEffect(() => {
-    localStorage.setItem("mm_panelWidth", String(panelWidth));
+    safeLocalStorageSet("mm_panelWidth", String(panelWidth));
   }, [panelWidth]);
 
   useEffect(() => {
@@ -527,7 +545,7 @@ export default function EditorApp() {
   }, [room, name, token]);
 
   useEffect(() => {
-    localStorage.setItem("mm_name", name);
+    safeLocalStorageSet("mm_name", name);
   }, [name]);
   useEffect(() => {
     setRoomInUrl(room);
@@ -548,7 +566,7 @@ export default function EditorApp() {
 
   const finishOnboarding = useCallback((showDoneToast = true) => {
     if (onboardingStorageKey) {
-      localStorage.setItem(onboardingStorageKey, '1');
+      safeLocalStorageSet(onboardingStorageKey, '1');
     }
     setShowOnboarding(false);
     if (showDoneToast) {
@@ -590,7 +608,7 @@ export default function EditorApp() {
       return;
     }
 
-    const hasSeen = localStorage.getItem(bootKey) === '1';
+    const hasSeen = safeLocalStorageGet(bootKey) === '1';
     if (!hasSeen) {
       setOnboardingStep(0);
       setShowOnboarding(true);
