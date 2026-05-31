@@ -1119,6 +1119,11 @@ kbd{
 /* Context menu for nodes */
 .contextMenu{
   min-width:160px;
+  width:min(320px, calc(100vw - 24px));
+  max-width:calc(100% - 16px);
+  max-height:min(72vh, 520px);
+  overflow:auto;
+  overscroll-behavior:contain;
   background: linear-gradient(180deg, rgba(18,26,46,.98), rgba(18,26,46,.92));
   border:1px solid rgba(255,255,255,.08);
   border-radius:12px;
@@ -1457,11 +1462,17 @@ kbd{
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: grab;
   box-shadow: 0 6px 24px rgba(124,92,255,.35);
   transition: transform .1s ease, filter .1s ease;
+  touch-action: none;
+  user-select: none;
 }
 .mobilePanelBtn:active{ transform: scale(.93); }
+.mobilePanelBtn.is-dragging{
+  cursor: grabbing;
+  transform: scale(.96);
+}
 
 /* Mobile panel close/back button inside panel top bar */
 .mobilePanelClose{

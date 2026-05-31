@@ -71,6 +71,7 @@ function buildPersonalRoomId(userData) {
 }
 
 const CHAT_FLOATING_POSITION_KEY = "mindmapr.chatFloating.position";
+const MOBILE_PANEL_BTN_POSITION_KEY = "mindmapr.mobilePanelBtn.position";
 
 function safeLocalStorageGet(key) {
   try {
@@ -321,11 +322,144 @@ export default function EditorApp() {
   const [showHistory, setShowHistory] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
+  const [mobilePanelBtnPosition, setMobilePanelBtnPosition] = useState(() => {
+    if (typeof window === 'undefined') return { x: 14, y: 72 };
+    try {
+      const raw = window.localStorage.getItem(MOBILE_PANEL_BTN_POSITION_KEY);
+      if (!raw) return { x: 14, y: Math.max(72, window.innerHeight - 66) };
+      const parsed = JSON.parse(raw);
+      const x = Number(parsed?.x);
+      const y = Number(parsed?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return { x: 14, y: Math.max(72, window.innerHeight - 66) };
+      }
+      return { x, y };
+    } catch {
+      return { x: 14, y: Math.max(72, window.innerHeight - 66) };
+    }
+  });
+  const [draggingMobilePanelBtn, setDraggingMobilePanelBtn] = useState(false);
+  const mobilePanelBtnDragRef = useRef({
+    startX: 0,
+    startY: 0,
+    originX: 14,
+    originY: 72,
+  });
+  const suppressMobilePanelBtnClickRef = useRef(false);
+
+  const clampMobilePanelBtnPosition = useCallback((nextPosition) => {
+    const btnSize = 48;
+    const margin = 8;
+    const headerBottom = Math.max(
+      54,
+      Math.round(document.querySelector('.header')?.getBoundingClientRect()?.bottom || 54)
+    );
+    const minX = margin;
+    const maxX = Math.max(minX, window.innerWidth - btnSize - margin);
+    const minY = Math.min(window.innerHeight - btnSize - margin, headerBottom + 6);
+    const maxY = Math.max(minY, window.innerHeight - btnSize - margin);
+
+    return {
+      x: Math.min(Math.max(minX, Number(nextPosition?.x) || minX), maxX),
+      y: Math.min(Math.max(minY, Number(nextPosition?.y) || minY), maxY),
+    };
+  }, []);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    setMobilePanelBtnPosition((current) => clampMobilePanelBtnPosition(current));
+  }, [clampMobilePanelBtnPosition, isMobile]);
+
+  useEffect(() => {
+    if (!draggingMobilePanelBtn) return undefined;
+
+    const onMouseMove = (event) => {
+      const deltaX = event.clientX - mobilePanelBtnDragRef.current.startX;
+      const deltaY = event.clientY - mobilePanelBtnDragRef.current.startY;
+      if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+        suppressMobilePanelBtnClickRef.current = true;
+      }
+      setMobilePanelBtnPosition(clampMobilePanelBtnPosition({
+        x: mobilePanelBtnDragRef.current.originX + deltaX,
+        y: mobilePanelBtnDragRef.current.originY + deltaY,
+      }));
+    };
+
+    const onTouchMove = (event) => {
+      const touch = event.touches && event.touches[0];
+      if (!touch) return;
+      const deltaX = touch.clientX - mobilePanelBtnDragRef.current.startX;
+      const deltaY = touch.clientY - mobilePanelBtnDragRef.current.startY;
+      if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+        suppressMobilePanelBtnClickRef.current = true;
+      }
+      setMobilePanelBtnPosition(clampMobilePanelBtnPosition({
+        x: mobilePanelBtnDragRef.current.originX + deltaX,
+        y: mobilePanelBtnDragRef.current.originY + deltaY,
+      }));
+      event.preventDefault();
+    };
+
+    const stopDrag = () => {
+      setDraggingMobilePanelBtn(false);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', stopDrag);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', stopDrag);
+    window.addEventListener('touchcancel', stopDrag);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', stopDrag);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', stopDrag);
+      window.removeEventListener('touchcancel', stopDrag);
+    };
+  }, [clampMobilePanelBtnPosition, draggingMobilePanelBtn]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(MOBILE_PANEL_BTN_POSITION_KEY, JSON.stringify(mobilePanelBtnPosition));
+    } catch {
+      // ignore storage failures
+    }
+  }, [mobilePanelBtnPosition]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setMobilePanelBtnPosition((current) => clampMobilePanelBtnPosition(current));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [clampMobilePanelBtnPosition]);
+
+  const startMobilePanelBtnDrag = useCallback((clientX, clientY) => {
+    mobilePanelBtnDragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      originX: mobilePanelBtnPosition.x,
+      originY: mobilePanelBtnPosition.y,
+    };
+    suppressMobilePanelBtnClickRef.current = false;
+    setDraggingMobilePanelBtn(true);
+  }, [mobilePanelBtnPosition.x, mobilePanelBtnPosition.y]);
+
+  const onMobilePanelBtnClick = useCallback((event) => {
+    if (suppressMobilePanelBtnClickRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressMobilePanelBtnClickRef.current = false;
+      return;
+    }
+    setShowMobilePanel(true);
   }, []);
 
   const { user, token, isAuthenticated, isAdmin, login, register, logout, changePassword } = useAuth();
@@ -1009,9 +1143,24 @@ export default function EditorApp() {
 
   const canvasRef = useRef(null);
   const [nodeContextMenu, setNodeContextMenu] = useState(null);
+  const nodeContextMenuRef = useRef(null);
   const renameInputRef = useRef(null);
   const colorInputRef = useRef(null);
   const [previewShape, setPreviewShape] = useState(null);
+
+  const clampNodeContextMenuPosition = useCallback((x, y, menuWidth = 320, menuHeight = 420) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x, y };
+    const rect = canvas.getBoundingClientRect();
+    const margin = 8;
+    const maxX = Math.max(margin, rect.width - menuWidth - margin);
+    const maxY = Math.max(margin, rect.height - menuHeight - margin);
+
+    return {
+      x: Math.min(Math.max(margin, x), maxX),
+      y: Math.min(Math.max(margin, y), maxY),
+    };
+  }, []);
 
   const IdeaNode = ({ id, data, selected }) => {
     const isPreview = previewShape && previewShape.nodeId === id;
@@ -1150,8 +1299,11 @@ export default function EditorApp() {
     } catch {}
     try { console.log('[openNodeMenuAtEvent] nodeId=', node?.id, 'canEdit=', canEdit); } catch {}
     const rect = canvasRef.current?.getBoundingClientRect();
-    const x = rect ? ev.clientX - rect.left : ev.clientX;
-    const y = rect ? ev.clientY - rect.top : ev.clientY;
+    const rawX = rect ? ev.clientX - rect.left : ev.clientX;
+    const rawY = rect ? ev.clientY - rect.top : ev.clientY;
+    const expectedMenuWidth = Math.min(320, Math.max(240, window.innerWidth - 24));
+    const expectedMenuHeight = 420;
+    const { x, y } = clampNodeContextMenuPosition(rawX, rawY, expectedMenuWidth, expectedMenuHeight);
     const label = (node && node.data && node.data.label) || "";
     // if node isn't selected yet, select it locally so actions apply to the intended node
     if (!node.selected) {
@@ -1166,6 +1318,32 @@ export default function EditorApp() {
       pendingColor: node?.data?.color ?? null,
     });
   };
+
+  useEffect(() => {
+    if (!nodeContextMenu) return;
+    const menuEl = nodeContextMenuRef.current;
+    if (!menuEl) return;
+
+    const menuWidth = menuEl.offsetWidth || 320;
+    const menuHeight = menuEl.offsetHeight || 420;
+    const clamped = clampNodeContextMenuPosition(nodeContextMenu.x, nodeContextMenu.y, menuWidth, menuHeight);
+    if (clamped.x !== nodeContextMenu.x || clamped.y !== nodeContextMenu.y) {
+      setNodeContextMenu((prev) => (prev ? { ...prev, x: clamped.x, y: clamped.y } : prev));
+    }
+  }, [clampNodeContextMenuPosition, nodeContextMenu, nodeContextMenu?.editing]);
+
+  useEffect(() => {
+    if (!nodeContextMenu) return undefined;
+    const onResize = () => {
+      const menuEl = nodeContextMenuRef.current;
+      const menuWidth = menuEl?.offsetWidth || 320;
+      const menuHeight = menuEl?.offsetHeight || 420;
+      const clamped = clampNodeContextMenuPosition(nodeContextMenu.x, nodeContextMenu.y, menuWidth, menuHeight);
+      setNodeContextMenu((prev) => (prev ? { ...prev, x: clamped.x, y: clamped.y } : prev));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [clampNodeContextMenuPosition, nodeContextMenu]);
 
   const closeNodeMenu = () => {
     setNodeContextMenu(null);
@@ -1329,7 +1507,7 @@ export default function EditorApp() {
       if (!nodeContextMenu) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const menuEl = document.querySelector('.contextMenu');
+      const menuEl = nodeContextMenuRef.current;
       if (menuEl && (menuEl === e.target || menuEl.contains(e.target))) return;
       // if click outside canvas or menu, close
       if (!canvas.contains(e.target)) closeNodeMenu();
@@ -2414,10 +2592,17 @@ export default function EditorApp() {
         <div className="canvasWrap" ref={canvasRef}>
           {isMobile ? (
             <button
-              className="mobilePanelBtn"
+              className={`mobilePanelBtn ${draggingMobilePanelBtn ? 'is-dragging' : ''}`}
               title="Отвори менюто"
               type="button"
-              onClick={() => setShowMobilePanel(true)}
+              style={{ left: mobilePanelBtnPosition.x, top: mobilePanelBtnPosition.y, bottom: 'auto' }}
+              onMouseDown={(event) => startMobilePanelBtnDrag(event.clientX, event.clientY)}
+              onTouchStart={(event) => {
+                const touch = event.touches && event.touches[0];
+                if (!touch) return;
+                startMobilePanelBtnDrag(touch.clientX, touch.clientY);
+              }}
+              onClick={onMobilePanelBtnClick}
             >
               ☰
             </button>
@@ -2455,6 +2640,7 @@ export default function EditorApp() {
 
           {nodeContextMenu ? (
             <div
+              ref={nodeContextMenuRef}
               className="contextMenu"
               style={{ position: 'absolute', left: nodeContextMenu.x, top: nodeContextMenu.y, zIndex: 1200 }}
             >
