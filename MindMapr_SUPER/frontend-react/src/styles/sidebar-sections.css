@@ -1,39 +1,73 @@
 .workflowGroup {
-  margin: 0 14px 14px;
-  border: 1px solid rgba(124, 92, 255, 0.22);
-  border-radius: 18px;
-  background: linear-gradient(140deg, rgba(14, 21, 42, 0.9), rgba(21, 31, 58, 0.88));
-  box-shadow: 0 10px 28px rgba(6, 11, 28, 0.35);
-  overflow: hidden;
+  margin: 0 10px 14px;
+  border: 1px solid rgba(124, 92, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(9, 15, 30, 0.34);
+  box-shadow: none;
+  overflow: visible;
+}
+
+.workflowTabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 10px 10px;
+  background: linear-gradient(180deg, rgba(11, 16, 32, 0.95), rgba(11, 16, 32, 0.82));
+  border-bottom: 1px solid rgba(124, 92, 255, 0.14);
+  backdrop-filter: blur(6px);
+}
+
+.workflowTabBtn {
+  border: 1px solid rgba(124, 92, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(236, 241, 255, 0.9);
+  border-radius: 10px;
+  padding: 8px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.workflowTabBtn:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.workflowTabBtn.is-active {
+  background: linear-gradient(130deg, rgba(124, 92, 255, 0.34), rgba(38, 209, 167, 0.24));
+  border-color: rgba(124, 92, 255, 0.42);
+  color: #ffffff;
 }
 
 .workflowGroupHeader {
-  padding: 14px 16px 12px;
-  border-bottom: 1px solid rgba(124, 92, 255, 0.2);
-  background: linear-gradient(90deg, rgba(124, 92, 255, 0.2), rgba(38, 209, 167, 0.08));
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(124, 92, 255, 0.14);
+  background: rgba(124, 92, 255, 0.06);
 }
 
 .workflowGroupHeader h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
-  color: #f4f6ff;
+  color: #f1f4ff;
   letter-spacing: 0.2px;
 }
 
 .workflowGroupHeader p {
   margin: 6px 0 0;
-  color: rgba(220, 229, 255, 0.8);
+  color: rgba(220, 229, 255, 0.72);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .workflowGroupBody {
-  padding: 10px;
+  padding: 8px;
 }
 
 .workflowGroupBody .section {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
 }
 
 .workflowGroupBody .section:last-child {
@@ -42,14 +76,14 @@
 
 .publishCtaRow {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .publishStatusHint {
-  border: 1px dashed rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  padding: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  padding: 8px;
   font-size: 12px;
   color: rgba(232, 238, 255, 0.86);
   background: rgba(255, 255, 255, 0.04);
@@ -57,10 +91,24 @@
 
 @media (max-width: 768px) {
   .workflowGroup {
-    margin: 0 8px 10px;
+    margin: 0 6px 10px;
+  }
+
+  .workflowTabs {
+    gap: 6px;
+    padding: 8px 6px 8px;
+  }
+
+  .workflowTabBtn {
+    font-size: 11px;
+    padding: 8px 4px;
   }
 
   .workflowGroupHeader {
-    padding: 12px 14px 10px;
+    padding: 10px 10px 8px;
+  }
+
+  .workflowGroupHeader h2 {
+    font-size: 15px;
   }
 }

@@ -578,7 +578,10 @@ export default function EditorApp() {
     return 320;
   });
   const mainRef = useRef(null);
+  const panelScrollRef = useRef(null);
+  const workflowSectionRefs = useRef({});
   const resizingRef = useRef(false);
+  const [activeWorkflowTab, setActiveWorkflowTab] = useState("create");
 
   useEffect(() => {
     safeLocalStorageSet("mm_panelWidth", String(panelWidth));
@@ -2201,6 +2204,16 @@ export default function EditorApp() {
   const activeOnboardingStep = onboardingSteps[onboardingStep] || onboardingSteps[0];
   const onboardingProgress = ((onboardingStep + 1) / onboardingSteps.length) * 100;
 
+  const focusWorkflowTab = useCallback((tabKey) => {
+    setActiveWorkflowTab(tabKey);
+    const container = panelScrollRef.current;
+    const section = workflowSectionRefs.current?.[tabKey];
+    if (!container || !section) return;
+
+    const nextTop = Math.max(0, section.offsetTop - 64);
+    container.scrollTo({ top: nextTop, behavior: "smooth" });
+  }, []);
+
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (e) => {
@@ -2241,13 +2254,46 @@ export default function EditorApp() {
       </div>
 
       <div className="main" ref={mainRef} style={isMobile ? { gridTemplateColumns: '1fr' } : { gridTemplateColumns: `${panelWidth}px 12px 1fr` }}>
-        <div className={`panel${isMobile ? ' mobile-side-panel' : ''}${isMobile && showMobilePanel ? ' mobile-open' : ''}`}>
+        <div
+          ref={panelScrollRef}
+          className={`panel${isMobile ? ' mobile-side-panel' : ''}${isMobile && showMobilePanel ? ' mobile-open' : ''}`}
+        >
           {isMobile ? (
             <div className="mobilePanelClose">
               <h4>🧠 Меню</h4>
               <button className="btn ghost" style={{ width: 'auto', padding: '8px 12px', fontSize: 18 }} onClick={() => setShowMobilePanel(false)}>✕</button>
             </div>
           ) : null}
+          <div className="workflowTabs" role="tablist" aria-label="Бърз достъп до секции">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeWorkflowTab === "create"}
+              className={`workflowTabBtn ${activeWorkflowTab === "create" ? "is-active" : ""}`}
+              onClick={() => focusWorkflowTab("create")}
+            >
+              Създаване
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeWorkflowTab === "edit"}
+              className={`workflowTabBtn ${activeWorkflowTab === "edit" ? "is-active" : ""}`}
+              onClick={() => focusWorkflowTab("edit")}
+            >
+              Редакция
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeWorkflowTab === "publish"}
+              className={`workflowTabBtn ${activeWorkflowTab === "publish" ? "is-active" : ""}`}
+              onClick={() => focusWorkflowTab("publish")}
+            >
+              Публикуване
+            </button>
+          </div>
+          <div ref={(el) => { workflowSectionRefs.current.create = el; }}>
           <SidebarWorkflowGroup
             title="1) Създаване на карта"
             description="Създай стая, настрой идентичност и подготви начална структура на нова карта."
@@ -2409,7 +2455,9 @@ export default function EditorApp() {
           </div>
 
           </SidebarWorkflowGroup>
+          </div>
 
+          <div ref={(el) => { workflowSectionRefs.current.edit = el; }}>
           <SidebarWorkflowGroup
             title="2) Редакция на карта"
             description="Работи върху съдържанието: възли, връзки, версии, импорт и експорт."
@@ -2534,7 +2582,9 @@ export default function EditorApp() {
           </div>
 
           </SidebarWorkflowGroup>
+          </div>
 
+          <div ref={(el) => { workflowSectionRefs.current.publish = el; }}>
           <SidebarWorkflowGroup
             title="3) Изпращане на заявка за публикуване"
             description="Подготви метаданните и изпрати карта за одобрение от администратор."
@@ -2604,6 +2654,7 @@ export default function EditorApp() {
           </div>
 
           </SidebarWorkflowGroup>
+          </div>
 
           {/* AI assistant removed */}
 
