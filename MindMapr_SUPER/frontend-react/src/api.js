@@ -65,6 +65,7 @@ export const mapsAPI = {
 export const roomsAPI = {
   getMeta: (room) => api.get(`/rooms/meta?room=${encodeURIComponent(room)}`),
   updateMeta: (room, { name, description, tags } = {}) => api.put('/rooms/meta', { room, name, description, tags }),
+  requestPublish: (room) => api.post('/rooms/request-publish', { room }),
 };
 
 // AI endpoints removed

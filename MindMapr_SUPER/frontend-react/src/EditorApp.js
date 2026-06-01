@@ -21,7 +21,9 @@ import { mapsAPI, roomsAPI, commentsAPI } from "./api";
 import AdminPanel from "./AdminPanel";
 import MapListDialog from "./MapListDialog";
 import MapHistoryDialog from "./MapHistoryDialog";
+import SidebarWorkflowGroup from "./SidebarWorkflowGroup";
 import { formatSofiaDateTime, formatSofiaTime, getSofiaNowTime } from "./time";
+import "./styles/sidebar-sections.css";
 
 function inferWsUrl() {
   const fromEnv = process.env.REACT_APP_WS_URL;
@@ -2072,6 +2074,25 @@ export default function EditorApp() {
     }
   }, [isAuthenticated, room, meta, showToast]);
 
+  const requestMapPublication = useCallback(async () => {
+    if (!isAuthenticated) {
+      showToast("Трябва да си влезнал(а), за да изпратиш заявка за публикуване.");
+      return;
+    }
+    setMetaBusy(true);
+    try {
+      await roomsAPI.updateMeta(room, meta);
+      await roomsAPI.requestPublish(room);
+      showToast("Заявката за публикуване е изпратена успешно.");
+    } catch (err) {
+      const apiError = err?.response?.data?.error;
+      if (apiError === "forbidden") showToast("Нямаш права да изпратиш заявка за тази стая.");
+      else showToast("Грешка при изпращане на заявката.");
+    } finally {
+      setMetaBusy(false);
+    }
+  }, [isAuthenticated, meta, room, showToast]);
+
   const onAuthFieldChange = useCallback((key, value) => {
     setAuthForm((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -2227,6 +2248,10 @@ export default function EditorApp() {
               <button className="btn ghost" style={{ width: 'auto', padding: '8px 12px', fontSize: 18 }} onClick={() => setShowMobilePanel(false)}>✕</button>
             </div>
           ) : null}
+          <SidebarWorkflowGroup
+            title="1) Създаване на карта"
+            description="Създай стая, настрой идентичност и подготви начална структура на нова карта."
+          >
           <div className="section">
             <h3>Стая за екипна работа</h3>
             <div className="col">
@@ -2383,31 +2408,12 @@ export default function EditorApp() {
             ) : null}
           </div>
 
-          {isAuthenticated && (myRole === 'owner' || isAdminLevelRole) && joinRequests.length > 0 ? (
-            <div className="section">
-              <h3>Заявки за достъп</h3>
-              <div className="col">
-                {joinRequests.map((req) => (
-                  <div key={req.requestId} className="small" style={{ border: '1px solid #2b3550', borderRadius: 10, padding: 10 }}>
-                    <div><b>{req.requesterName || req.requesterUsername || req.requesterEmail || 'Потребител'}</b></div>
-                    <div style={{ opacity: 0.85 }}>иска достъп до стаята</div>
-                    <div style={{ marginBottom: 8 }}><b>{req.room}</b></div>
-                    <div className="row" style={{ flexWrap: 'wrap' }}>
-                      <button className="btn primary" onClick={() => decideJoinRequest(req.requestId, 'approve', 'editor')}>
-                        Одобри като Editor
-                      </button>
-                      <button className="btn ghost" onClick={() => decideJoinRequest(req.requestId, 'approve', 'viewer')}>
-                        Одобри като Viewer
-                      </button>
-                      <button className="btn warn" onClick={() => decideJoinRequest(req.requestId, 'deny')}>
-                        Откажи
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          </SidebarWorkflowGroup>
+
+          <SidebarWorkflowGroup
+            title="2) Редакция на карта"
+            description="Работи върху съдържанието: възли, връзки, версии, импорт и експорт."
+          >
 
           <div className="section">
             <h3>Инструменти</h3>
@@ -2527,6 +2533,39 @@ export default function EditorApp() {
             <div className="small">Можеш да запазиш/заредиш като JSON файл или като PNG изображение (QR).</div>
           </div>
 
+          </SidebarWorkflowGroup>
+
+          <SidebarWorkflowGroup
+            title="3) Изпращане на заявка за публикуване"
+            description="Подготви метаданните и изпрати карта за одобрение от администратор."
+          >
+
+          {isAuthenticated && (myRole === 'owner' || isAdminLevelRole) && joinRequests.length > 0 ? (
+            <div className="section">
+              <h3>Заявки за достъп</h3>
+              <div className="col">
+                {joinRequests.map((req) => (
+                  <div key={req.requestId} className="small" style={{ border: '1px solid #2b3550', borderRadius: 10, padding: 10 }}>
+                    <div><b>{req.requesterName || req.requesterUsername || req.requesterEmail || 'Потребител'}</b></div>
+                    <div style={{ opacity: 0.85 }}>иска достъп до стаята</div>
+                    <div style={{ marginBottom: 8 }}><b>{req.room}</b></div>
+                    <div className="row" style={{ flexWrap: 'wrap' }}>
+                      <button className="btn primary" onClick={() => decideJoinRequest(req.requestId, 'approve', 'editor')}>
+                        Одобри като Editor
+                      </button>
+                      <button className="btn ghost" onClick={() => decideJoinRequest(req.requestId, 'approve', 'viewer')}>
+                        Одобри като Viewer
+                      </button>
+                      <button className="btn warn" onClick={() => decideJoinRequest(req.requestId, 'deny')}>
+                        Откажи
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="section">
             <h3>Информация за карта</h3>
             <div className="col">
@@ -2552,9 +2591,19 @@ export default function EditorApp() {
                 <button className="btn ghost" onClick={loadMeta} disabled={metaBusy}>↻ Зареди</button>
                 <button className="btn primary" onClick={saveMeta} disabled={metaBusy}>💾 Запази инфо</button>
               </div>
+              <div className="publishCtaRow">
+                <button className="btn warn" onClick={requestMapPublication} disabled={metaBusy}>
+                  📤 Изпрати заявка за публикуване
+                </button>
+              </div>
+              <div className="publishStatusHint">
+                След изпращане картата влиза в статус "чака одобрение" и се преглежда от администратор.
+              </div>
               <div className="small">Името/описанието се виждат и в „Онлайн карти“ (ако стаята е одобрена).</div>
             </div>
           </div>
+
+          </SidebarWorkflowGroup>
 
           {/* AI assistant removed */}
 

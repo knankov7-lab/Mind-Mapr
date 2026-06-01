@@ -460,6 +460,29 @@ app.put("/api/rooms/meta", requireAuth, async (req, res) => {
   }
 });
 
+app.post("/api/rooms/request-publish", requireAuth, async (req, res) => {
+  const room = (req.body?.room || "").toString().trim();
+  if (!room) return res.status(400).json({ error: "room required" });
+
+  try {
+    const access = await canAccessRoom(req, room, { allowPublicRead: false });
+    if (!access.ok) return res.status(access.status).json({ error: access.error });
+
+    const canWrite =
+      isAdminUser(req) || String(access.role) === "owner" || String(access.role) === "editor";
+    if (!canWrite) return res.status(403).json({ error: "forbidden" });
+
+    await run(
+      "UPDATE rooms SET public = 0, approval_status = 'pending' WHERE room_id = ?",
+      [room]
+    );
+    await logAction(req, "room_publish_request", { room });
+    return res.json({ ok: true, room, approval_status: "pending" });
+  } catch (_err) {
+    return res.status(500).json({ error: "Publish request failed" });
+  }
+});
+
 const roomState = new Map();
 
 app.get("/api/health", async (req, res) => {
