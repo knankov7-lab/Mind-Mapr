@@ -39,6 +39,7 @@ function inferWsUrl() {
 }
 
 const WS = inferWsUrl();
+const HISTORY_AUTOSAVE_INTERVAL_MS = 20000;
 
 function getRoomFromUrl() {
   const u = new URL(window.location.href);
@@ -620,6 +621,7 @@ export default function EditorApp() {
   const pendingTimerRef = useRef(null);
   const importFileRef = useRef(null);
   const importImageRef = useRef(null);
+  const lastSavedSnapshotRef = useRef("");
 
   const [meta, setMeta] = useState({ name: "", description: "", tags: "" });
   const [metaBusy, setMetaBusy] = useState(false);
@@ -1790,18 +1792,62 @@ export default function EditorApp() {
     showToast("Избраните връзки са изтрити.");
   }, [canEdit, edges, nodes, scheduleBroadcast, showToast]);
 
-  const saveSnapshot = useCallback(async () => {
-    if (!isAuthenticated) {
-      showToast("Трябва да сте влезли в системата, за да запазите.");
-      return;
+  const buildSnapshotSignature = useCallback((roomId, snapshotNodes, snapshotEdges) => {
+    try {
+      return `${String(roomId || "")}::${JSON.stringify(snapshotNodes || [])}::${JSON.stringify(snapshotEdges || [])}`;
+    } catch {
+      return "";
     }
+  }, []);
+
+  const persistSnapshot = useCallback(async ({ silent = false } = {}) => {
+    if (!isAuthenticated) {
+      if (!silent) showToast("Трябва да сте влезли в системата, за да запазите.");
+      return false;
+    }
+
     try {
       await mapsAPI.save(room, nodes, edges);
-      showToast("Запазено в базата данни.");
+      lastSavedSnapshotRef.current = buildSnapshotSignature(room, nodes, edges);
+      if (!silent) showToast("Запазено в базата данни.");
+      return true;
     } catch (error) {
-      showToast("Грешка при запис: " + (error.response?.data?.error || error.message));
+      if (!silent) {
+        showToast("Грешка при запис: " + (error.response?.data?.error || error.message));
+      }
+      return false;
     }
-  }, [isAuthenticated, room, nodes, edges, showToast]);
+  }, [isAuthenticated, room, nodes, edges, showToast, buildSnapshotSignature]);
+
+  const saveSnapshot = useCallback(async () => {
+    await persistSnapshot({ silent: false });
+  }, [persistSnapshot]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      lastSavedSnapshotRef.current = "";
+      return;
+    }
+    lastSavedSnapshotRef.current = buildSnapshotSignature(room, nodes, edges);
+    // Baseline for autosave after room/session changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !canEdit) return undefined;
+
+    const autosaveTimerId = window.setInterval(async () => {
+      if (status !== "online") return;
+
+      const currentSignature = buildSnapshotSignature(room, nodes, edges);
+      if (!currentSignature) return;
+      if (currentSignature === lastSavedSnapshotRef.current) return;
+
+      await persistSnapshot({ silent: true });
+    }, HISTORY_AUTOSAVE_INTERVAL_MS);
+
+    return () => window.clearInterval(autosaveTimerId);
+  }, [isAuthenticated, canEdit, status, room, nodes, edges, buildSnapshotSignature, persistSnapshot]);
 
   const loadSnapshot = useCallback(async () => {
     try {
